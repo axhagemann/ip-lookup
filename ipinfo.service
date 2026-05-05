@@ -1,0 +1,12 @@
+[Unit]
+Description=IP Info FastAPI app
+After=network.target
+
+[Service]
+User=www-data
+WorkingDirectory=/home/alex/ipinfo
+ExecStart=/home/alex/ipinfo/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

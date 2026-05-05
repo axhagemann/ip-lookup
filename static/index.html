@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My IP</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.5rem;
+      padding: 2rem;
+    }
+
+    h1 { font-size: 1.25rem; color: #94a3b8; letter-spacing: 0.05em; text-transform: uppercase; }
+
+    .cards {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+      max-width: 860px;
+    }
+
+    .card {
+      background: #1e2330;
+      border: 1px solid #2d3448;
+      border-radius: 12px;
+      padding: 1.5rem 2rem;
+      flex: 1;
+      min-width: 280px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-v4 { background: #1d4ed8; color: #bfdbfe; }
+    .badge-v6 { background: #7c3aed; color: #ede9fe; }
+
+    .ip-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      font-family: monospace;
+      color: #f8fafc;
+      word-break: break-all;
+      margin-bottom: 1.25rem;
+    }
+
+    .geo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem 1rem;
+    }
+
+    .geo-item label {
+      display: block;
+      font-size: 0.7rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.15rem;
+    }
+
+    .geo-item span {
+      font-size: 0.9rem;
+      color: #cbd5e1;
+    }
+
+    .unavailable {
+      color: #475569;
+      font-style: italic;
+      font-size: 0.95rem;
+    }
+
+    .copy-btn {
+      background: none;
+      border: 1px solid #2d3448;
+      color: #94a3b8;
+      padding: 0.3rem 0.75rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      margin-top: 1rem;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .copy-btn:hover { border-color: #4b5563; color: #e2e8f0; }
+    .copy-btn.copied { color: #4ade80; border-color: #4ade80; }
+
+    .loading { color: #475569; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>Your IP Address</h1>
+
+  <div class="cards">
+    <div class="card" id="card-v4">
+      <div class="card-header">
+        <span class="badge badge-v4">IPv4</span>
+      </div>
+      <div class="ip-value loading" id="ip-v4">Fetching...</div>
+      <div id="geo-v4"></div>
+    </div>
+
+    <div class="card" id="card-v6">
+      <div class="card-header">
+        <span class="badge badge-v6">IPv6</span>
+      </div>
+      <div class="ip-value loading" id="ip-v6">Fetching...</div>
+      <div id="geo-v6"></div>
+    </div>
+  </div>
+
+  <script>
+    const IPV4_ENDPOINT = "https://ipv4.yourdomain.com/ip";
+    const IPV6_ENDPOINT = "https://ipv6.yourdomain.com/ip";
+
+    function renderGeo(geo) {
+      if (!geo || Object.keys(geo).length === 0) return "";
+      const fields = [
+        ["Country", geo.country],
+        ["Region", geo.region],
+        ["City", geo.city],
+        ["ISP", geo.isp],
+        ["Timezone", geo.timezone],
+        ["Coordinates", geo.latitude && geo.longitude
+          ? `${geo.latitude}, ${geo.longitude}` : null],
+      ];
+      return `<div class="geo-grid">
+        ${fields.filter(([, v]) => v).map(([label, value]) =>
+          `<div class="geo-item"><label>${label}</label><span>${value}</span></div>`
+        ).join("")}
+      </div>`;
+    }
+
+    function copyBtn(ip) {
+      return `<button class="copy-btn" onclick="copyIP(this, '${ip}')">Copy IP</button>`;
+    }
+
+    async function copyIP(btn, ip) {
+      await navigator.clipboard.writeText(ip);
+      btn.textContent = "Copied!";
+      btn.classList.add("copied");
+      setTimeout(() => { btn.textContent = "Copy IP"; btn.classList.remove("copied"); }, 1500);
+    }
+
+    async function fetchIP(endpoint, ipEl, geoEl) {
+      try {
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error();
+        const { ip, geo } = await res.json();
+        ipEl.textContent = ip;
+        ipEl.classList.remove("loading");
+        geoEl.innerHTML = renderGeo(geo) + copyBtn(ip);
+      } catch {
+        ipEl.textContent = "Not available";
+        ipEl.classList.add("unavailable");
+        ipEl.classList.remove("loading");
+      }
+    }
+
+    fetchIP(IPV4_ENDPOINT, document.getElementById("ip-v4"), document.getElementById("geo-v4"));
+    fetchIP(IPV6_ENDPOINT, document.getElementById("ip-v6"), document.getElementById("geo-v6"));
+  </script>
+</body>
+</html>
