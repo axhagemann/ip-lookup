@@ -77,6 +77,30 @@ Restart Docker:
 sudo systemctl restart docker
 ```
 
+## Server housekeeping
+
+### Update Ubuntu
+
+```bash
+apt update && apt upgrade -y && apt autoremove -y
+```
+
+### Disable password login (SSH key required first)
+
+Verify your SSH key login works before running this, otherwise you will lock yourself out.
+
+```bash
+sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && systemctl restart ssh
+```
+
+Confirm it is disabled:
+
+```bash
+grep PasswordAuthentication /etc/ssh/sshd_config
+```
+
+---
+
 ## Deployment
 
 ### Start
