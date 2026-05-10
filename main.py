@@ -55,6 +55,11 @@ def _cache_set(ip: str, data: dict) -> None:
     _geo_cache[ip] = (data, time())
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 @app.get("/ip")
 async def get_ip(request: Request):
     forwarded_for = request.headers.get("X-Forwarded-For")
