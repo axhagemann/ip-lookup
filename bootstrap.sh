@@ -11,10 +11,10 @@ mkdir -p certbot/www certbot/conf
 echo "==> Starting temporary nginx for ACME challenges..."
 docker run -d --rm \
   --name nginx-init \
-  -p 80:80 \
+  -p 80:8080 \
   -v "$(pwd)/certbot/www:/var/www/certbot:ro" \
   -v "$(pwd)/nginx.init.conf:/etc/nginx/conf.d/default.conf:ro" \
-  nginx:alpine
+  nginxinc/nginx-unprivileged:alpine
 
 echo "==> Issuing certificates..."
 docker run --rm \
