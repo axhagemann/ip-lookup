@@ -6,3 +6,6 @@ nginx.conf
 nginx.docker.conf
 ipinfo.service
 *.md
+certbot/
+nginx.init.conf
+bootstrap.sh
