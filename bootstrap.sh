@@ -22,8 +22,8 @@ docker run --rm \
   -v "$(pwd)/certbot/www:/var/www/certbot" \
   certbot/certbot certonly --webroot -w /var/www/certbot \
   -d "$DOMAIN" \
-  -d "ipv4.$DOMAIN" \
-  -d "ipv6.$DOMAIN" \
+  -d "ip4.$DOMAIN" \
+  -d "ip6.$DOMAIN" \
   --email "$EMAIL" --agree-tos --no-eff-email
 
 echo "==> Stopping temporary nginx..."
