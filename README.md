@@ -4,13 +4,15 @@ A self-hosted webpage that displays a visitor's IPv4 and IPv6 addresses along wi
 
 ## How it works
 
-A single FastAPI backend serves one `/ip` endpoint. Two DNS subdomains — one with only an `A` record, one with only an `AAAA` record — force the browser to connect via each protocol separately. Nginx passes the real client IP via `X-Forwarded-For`. Geolocation is resolved server-side via [ipapi.co](https://ipapi.co).
+A single FastAPI backend serves one `/ip` endpoint. Two DNS subdomains — one with only an `A` record, one with only an `AAAA` record — force the browser to connect via each protocol separately. Nginx runs with `network_mode: host` so `$remote_addr` is always the real client IP (not a Docker-internal address). Geolocation is resolved server-side via [ipapi.co](https://ipapi.co).
 
 ```
 Browser
-  ├── GET https://ipv4.yourdomain.com/ip  →  Nginx (IPv4 only)  →  FastAPI  →  { ip: "1.2.3.4", geo: ... }
-  └── GET https://ipv6.yourdomain.com/ip  →  Nginx (IPv6 only)  →  FastAPI  →  { ip: "2001:...", geo: ... }
+  ├── GET https://ip4.yourdomain.com/ip  →  Nginx (IPv4 only)  →  FastAPI  →  { ip: "1.2.3.4", geo: ... }
+  └── GET https://ip6.yourdomain.com/ip  →  Nginx (IPv6 only)  →  FastAPI  →  { ip: "2001:...", geo: ... }
 ```
+
+Nginx listens on ports `8080`/`8443` internally. Host-level iptables rules forward `80→8080` and `443→8443`, allowing the unprivileged nginx container to handle public traffic without root.
 
 ## Prerequisites
 
@@ -30,164 +32,96 @@ curl -6 ifconfig.me   # should return an IPv6 address
 
 ### 1. DNS records
 
-Add the following records in your DNS provider (replace the IP addresses with your server's):
-
 | Type | Name | Value |
 |------|------|-------|
-| `A` | `yourdomain.com` | `203.0.113.10` |
-| `AAAA` | `yourdomain.com` | `2001:db8::1` |
-| `A` | `ipv4.yourdomain.com` | `203.0.113.10` |
-| `AAAA` | `ipv6.yourdomain.com` | `2001:db8::1` |
+| `A` | `yourdomain.com` | your server's IPv4 |
+| `AAAA` | `yourdomain.com` | your server's IPv6 |
+| `A` | `ip4.yourdomain.com` | your server's IPv4 |
+| `AAAA` | `ip6.yourdomain.com` | your server's IPv6 |
 
-> **Important:** `ipv4.yourdomain.com` must have **only** an `A` record (no `AAAA`).
-> `ipv6.yourdomain.com` must have **only** an `AAAA` record (no `A`).
+> **Important:** `ip4.yourdomain.com` must have **only** an `A` record (no `AAAA`).
+> `ip6.yourdomain.com` must have **only** an `AAAA` record (no `A`).
 > This forces each subdomain to be reachable via one protocol only.
 
 ### 2. Update domain references
 
-Replace `yourdomain.com` in both files:
+Replace `yourdomain.com` in:
 
-**`nginx.docker.conf`** — three `server_name` directives:
-```nginx
-server_name yourdomain.com;
-server_name ipv4.yourdomain.com;
-server_name ipv6.yourdomain.com;
-```
-
-**`static/index.html`** — two endpoint constants:
-```js
-const IPV4_ENDPOINT = "https://ipv4.yourdomain.com/ip";
-const IPV6_ENDPOINT = "https://ipv6.yourdomain.com/ip";
-```
-
-### 3. Enable IPv6 in Docker
-
-Docker's default bridge network is IPv4-only. Add the following to `/etc/docker/daemon.json` on the host (create the file if it doesn't exist):
-
-```json
-{
-  "ipv6": true,
-  "fixed-cidr-v6": "fd00::/80"
-}
-```
-
-Restart Docker:
-
-```bash
-sudo systemctl restart docker
-```
-
-## Server housekeeping
-
-### Update Ubuntu
-
-```bash
-apt update && apt upgrade -y && apt autoremove -y
-```
-
-### Disable password login (SSH key required first)
-
-Verify your SSH key login works before running this, otherwise you will lock yourself out.
-
-```bash
-sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && systemctl restart ssh
-```
-
-Confirm it is disabled:
-
-```bash
-grep PasswordAuthentication /etc/ssh/sshd_config
-```
-
----
+**`nginx.docker.conf`** — `server_name` directives  
+**`static/index.html`** — two endpoint constants  
+**`bootstrap.sh`** — `DOMAIN` variable
 
 ## Deployment
 
-### Start
+### First-time setup
+
+`bootstrap.sh` handles everything in order: iptables port forwarding, Let's Encrypt certificate issuance, and starting the stack.
 
 ```bash
-docker compose up -d
+./bootstrap.sh
 ```
 
-### Rebuild after code changes
+After it completes, make the iptables rules persistent across reboots:
 
 ```bash
+sudo apt install iptables-persistent
+sudo netfilter-persistent save
+```
+
+### Subsequent deploys
+
+```bash
+git pull
 docker compose up -d --build
 ```
 
-### Stop
+### Common commands
 
 ```bash
-docker compose down
+docker compose up -d          # start
+docker compose down           # stop
+docker compose restart nginx  # reload nginx config
+docker compose logs -f        # all logs
+docker compose logs -f app    # FastAPI only
+docker compose logs -f nginx  # Nginx only
 ```
 
-### View logs
+## HTTPS
+
+HTTPS is handled automatically. Certbot issues a Let's Encrypt certificate during `bootstrap.sh` covering all three domains (`yourdomain.com`, `ip4.yourdomain.com`, `ip6.yourdomain.com`) and renews it automatically every 12 hours (renews when within 30 days of expiry).
+
+Certificates are stored in `certbot/conf/` (excluded from git via `.gitignore`).
+
+### Certificate file permissions
+
+Certbot creates certificate files owned by root. The unprivileged nginx container needs read access. Fix after issuance and after any manual renewal:
 
 ```bash
-docker compose logs -f          # all services
-docker compose logs -f app      # FastAPI only
-docker compose logs -f nginx    # Nginx only
+sudo chmod -R 755 certbot/conf/live certbot/conf/archive
+sudo chmod 644 certbot/conf/archive/yourdomain.com/privkey*.pem
 ```
 
-## HTTPS (recommended)
+A deploy hook at `certbot/conf/renewal-hooks/deploy/fix-permissions.sh` runs this automatically after each automatic renewal.
 
-HTTPS is required for the frontend to call the subdomain endpoints from a secure origin. Use [Certbot](https://certbot.eff.org/) with the Nginx plugin.
+## Port forwarding
 
-Install Certbot on the host:
+Nginx listens on `8080` (HTTP) and `8443` (HTTPS) as an unprivileged user. iptables redirects public ports to these:
 
 ```bash
-sudo apt install certbot python3-certbot-nginx
-```
+# Set up (already done by bootstrap.sh)
+sudo iptables  -t nat -A PREROUTING -p tcp --dport 80  -j REDIRECT --to-port 8080
+sudo iptables  -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443
+sudo ip6tables -t nat -A PREROUTING -p tcp --dport 80  -j REDIRECT --to-port 8080
+sudo ip6tables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443
 
-Stop the Docker Nginx container temporarily (it holds port 80):
-
-```bash
-docker compose stop nginx
-```
-
-Obtain certificates for all three domains:
-
-```bash
-sudo certbot certonly --standalone \
-  -d yourdomain.com \
-  -d ipv4.yourdomain.com \
-  -d ipv6.yourdomain.com
-```
-
-Update `nginx.docker.conf` to listen on port 443 and reference the certificates:
-
-```nginx
-server {
-    listen 443 ssl;
-    server_name yourdomain.com;
-    ssl_certificate     /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
-    ...
-}
-```
-
-Mount the certificates directory in `docker-compose.yml`:
-
-```yaml
-nginx:
-  volumes:
-    - ./nginx.docker.conf:/etc/nginx/conf.d/default.conf:ro
-    - /etc/letsencrypt:/etc/letsencrypt:ro
-```
-
-Restart:
-
-```bash
-docker compose up -d
+# Persist across reboots
+sudo apt install iptables-persistent
+sudo netfilter-persistent save
 ```
 
 ## Rate limiting
 
-Rate limiting is applied at two layers.
-
 ### Nginx (request layer)
-
-Configured in `nginx.docker.conf`:
 
 | Setting | Value | Effect |
 |---|---|---|
@@ -198,21 +132,9 @@ Configured in `nginx.docker.conf`:
 
 When the limit is exceeded Nginx returns **HTTP 429** before the request reaches Python.
 
-To tighten or loosen the rate, edit the `rate=` value in `nginx.docker.conf` and restart the nginx container:
-
-```bash
-docker compose restart nginx
-```
-
 ### FastAPI (geo cache layer)
 
-`main.py` caches geolocation results in memory for **30 seconds** (up to 1,000 unique IPs). Repeated requests from the same IP skip the external ipapi.co call entirely, which:
-
-- Reduces outbound HTTP calls on a low-resource VPS
-- Stays well within ipapi.co's 1,000 requests/day free tier
-- Cuts response latency for returning visitors
-
-Both limits and the TTL can be adjusted via the constants at the top of `main.py`:
+`main.py` caches geolocation results in memory for **30 seconds** (up to 1,000 unique IPs). Repeated requests from the same IP skip the external ipapi.co call entirely.
 
 ```python
 _GEO_TTL = 30     # cache lifetime in seconds
@@ -221,16 +143,47 @@ _GEO_MAX = 1000   # max IPs to keep in memory
 
 ## Geolocation limits
 
-Geolocation is provided by [ipapi.co](https://ipapi.co). The free tier allows **1,000 requests per day**. For higher volume, either subscribe to a paid plan or replace the provider in `main.py` with a self-hosted [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) database (requires free registration).
+Geolocation is provided by [ipapi.co](https://ipapi.co). The free tier allows **1,000 requests per day**. For higher volume, replace the provider in `main.py` with a self-hosted [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) database.
+
+## Server housekeeping
+
+### Update packages
+
+```bash
+sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y
+```
+
+### Update Docker images
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+### Non-root user (recommended)
+
+```bash
+adduser alex
+usermod -aG sudo alex
+usermod -aG docker alex
+# copy SSH key, then:
+sudo rm -rf /root/.ssh
+echo "PasswordAuthentication no" | sudo tee -a /etc/ssh/sshd_config
+sudo systemctl restart ssh
+```
 
 ## Project structure
 
 ```
 ipinfo/
 ├── Dockerfile              # FastAPI app image (non-root)
-├── docker-compose.yml      # Orchestrates app + nginx
-├── nginx.docker.conf       # Nginx reverse proxy config
+├── docker-compose.yml      # Orchestrates app + nginx + certbot
+├── nginx.docker.conf       # Nginx reverse proxy (host network, ports 8080/8443)
+├── nginx.init.conf         # Minimal HTTP config used only during bootstrap
+├── nginx.conf              # Nginx config for non-Docker deployments
+├── bootstrap.sh            # First-time setup: iptables + certs + stack start
 ├── .dockerignore
+├── .gitignore
 ├── main.py                 # FastAPI app
 ├── requirements.txt
 └── static/
