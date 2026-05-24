@@ -11,7 +11,8 @@ mkdir -p certbot/www certbot/conf
 echo "==> Starting temporary nginx for ACME challenges..."
 docker run -d --rm \
   --name nginx-init \
-  -p 80:8080 \
+  --network host \
+  --cap-add NET_BIND_SERVICE \
   -v "$(pwd)/certbot/www:/var/www/certbot:ro" \
   -v "$(pwd)/nginx.init.conf:/etc/nginx/conf.d/default.conf:ro" \
   nginxinc/nginx-unprivileged:alpine
