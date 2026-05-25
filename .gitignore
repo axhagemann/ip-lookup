@@ -1,6 +1,9 @@
 # TLS certificates and private keys — never commit these
 certbot/
 
+# Secrets
+.env
+
 # Python
 .venv/
 __pycache__/
