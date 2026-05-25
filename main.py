@@ -1,7 +1,10 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from datetime import datetime, timezone
 from time import time
+import ipaddress
 import httpx
 import logging
 
@@ -55,6 +58,15 @@ def _cache_set(ip: str, data: dict) -> None:
     _geo_cache[ip] = (data, time())
 
 
+def _client_ip(request: Request) -> str:
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    return forwarded_for.split(",")[0].strip() if forwarded_for else request.client.host
+
+
+def _is_browser(request: Request) -> bool:
+    return "Mozilla" in request.headers.get("User-Agent", "")
+
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}
@@ -62,8 +74,7 @@ async def health():
 
 @app.get("/ip")
 async def get_ip(request: Request):
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    ip = forwarded_for.split(",")[0].strip() if forwarded_for else request.client.host
+    ip = _client_ip(request)
 
     geo = _cache_get(ip)
     if geo is None:
@@ -86,6 +97,28 @@ async def get_ip(request: Request):
         _cache_set(ip, geo)
 
     return {"ip": ip, "geo": geo}
+
+
+@app.get("/")
+async def index(request: Request):
+    if _is_browser(request):
+        return FileResponse("static/index.html")
+
+    ip = _client_ip(request)
+    try:
+        addr = ipaddress.ip_address(ip)
+        # Unwrap IPv4-mapped IPv6 addresses (::ffff:1.2.3.4)
+        if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped:
+            addr = addr.ipv4_mapped
+        is_v4 = isinstance(addr, ipaddress.IPv4Address)
+    except ValueError:
+        is_v4 = True
+
+    return {
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "ipv4": ip if is_v4 else None,
+        "ipv6": ip if not is_v4 else None,
+    }
 
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
