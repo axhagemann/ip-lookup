@@ -176,6 +176,17 @@ Umami runs at `https://umami.alexander-hagemann.de` alongside the main stack.
 
 ### First-time setup
 
+**If adding Umami to an existing deployment**, first expand the Let's Encrypt cert to cover the new subdomain (after adding the DNS record):
+
+```bash
+docker compose run --rm certbot certonly --webroot -w /var/www/certbot \
+  -d alexander-hagemann.de \
+  -d ip4.alexander-hagemann.de \
+  -d ip6.alexander-hagemann.de \
+  -d umami.alexander-hagemann.de \
+  --email mail@alexander-hagemann.de --agree-tos --no-eff-email --expand
+```
+
 Generate secrets and append them to `.env` on the server:
 
 ```bash
