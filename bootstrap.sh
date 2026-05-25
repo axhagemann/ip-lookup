@@ -35,7 +35,6 @@ docker run --rm \
   -d "$DOMAIN" \
   -d "ip4.$DOMAIN" \
   -d "ip6.$DOMAIN" \
-  -d "umami.$DOMAIN" \
   --email "$EMAIL" --agree-tos --no-eff-email
 
 echo "==> Stopping temporary nginx..."

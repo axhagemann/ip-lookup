@@ -170,52 +170,6 @@ Geolocation uses local [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2
 
 GeoLite2 is free but requires attribution. This database incorporates GeoLite2 data created by MaxMind, available from [maxmind.com](https://www.maxmind.com).
 
-## Umami analytics
-
-Umami runs at `https://umami.alexander-hagemann.de` alongside the main stack.
-
-### First-time setup
-
-**If adding Umami to an existing deployment**, first expand the Let's Encrypt cert to cover the new subdomain (after adding the DNS record):
-
-```bash
-docker compose run --rm certbot certonly --webroot -w /var/www/certbot \
-  -d alexander-hagemann.de \
-  -d ip4.alexander-hagemann.de \
-  -d ip6.alexander-hagemann.de \
-  -d umami.alexander-hagemann.de \
-  --email mail@alexander-hagemann.de --agree-tos --no-eff-email --expand
-```
-
-Generate secrets and append them to `.env` on the server:
-
-```bash
-echo "UMAMI_APP_SECRET=$(openssl rand -hex 32)" >> .env
-echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)" >> .env
-```
-
-Then deploy:
-
-```bash
-docker compose up -d
-docker compose logs -f umami   # wait for "Ready"
-```
-
-### Post-deploy
-
-1. Open `https://umami.alexander-hagemann.de` and log in with `admin` / `umami`
-2. **Change the password immediately** (Settings → Profile)
-3. Go to Settings → Websites → Add website → copy the website ID
-4. Replace `REPLACE_WITH_WEBSITE_ID` in `static/index.html` with the real ID
-5. Redeploy: `docker compose up -d --build`
-
-### Common commands
-
-```bash
-docker compose logs -f umami   # Umami logs
-docker compose logs -f db      # PostgreSQL logs
-```
-
 ## Server housekeeping
 
 ### Update packages
