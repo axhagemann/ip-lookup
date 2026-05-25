@@ -1,9 +1,11 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from datetime import datetime, timezone
 from time import time
+import asyncio
 import ipaddress
 import geoip2.database
 import geoip2.errors
@@ -16,7 +18,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("ipinfo")
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    asyncio.create_task(_retry_readers())
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.middleware("http")
@@ -57,6 +65,14 @@ def _load_readers() -> None:
 
 
 _load_readers()
+
+
+async def _retry_readers():
+    while _city_reader is None:
+        await asyncio.sleep(30)
+        _load_readers()
+        if _city_reader is not None:
+            logger.info("GeoLite2 databases loaded successfully")
 
 
 def _cache_get(ip: str) -> dict | None:
