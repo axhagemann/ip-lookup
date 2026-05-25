@@ -131,10 +131,11 @@ Nginx listens on `8080` (HTTP) and `8443` (HTTPS) as an unprivileged user. iptab
 
 ```bash
 # Set up (already done by bootstrap.sh)
-sudo iptables  -t nat -A PREROUTING -p tcp --dport 80  -j REDIRECT --to-port 8080
-sudo iptables  -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443
-sudo ip6tables -t nat -A PREROUTING -p tcp --dport 80  -j REDIRECT --to-port 8080
-sudo ip6tables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443
+# Scoped to eth0 so Docker container outbound traffic is not affected
+sudo iptables  -t nat -A PREROUTING -i eth0 -p tcp --dport 80  -j REDIRECT --to-port 8080
+sudo iptables  -t nat -A PREROUTING -i eth0 -p tcp --dport 443 -j REDIRECT --to-port 8443
+sudo ip6tables -t nat -A PREROUTING -i eth0 -p tcp --dport 80  -j REDIRECT --to-port 8080
+sudo ip6tables -t nat -A PREROUTING -i eth0 -p tcp --dport 443 -j REDIRECT --to-port 8443
 
 # Persist across reboots
 sudo apt install iptables-persistent

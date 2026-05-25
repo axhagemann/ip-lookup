@@ -9,14 +9,15 @@ DOMAIN="alexander-hagemann.de"
 mkdir -p certbot/www certbot/conf
 
 echo "==> Setting up port forwarding (80→8080, 443→8443)..."
-sudo iptables  -t nat -C PREROUTING -p tcp --dport 80  -j REDIRECT --to-port 8080 2>/dev/null || \
-  sudo iptables  -t nat -A PREROUTING -p tcp --dport 80  -j REDIRECT --to-port 8080
-sudo iptables  -t nat -C PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443 2>/dev/null || \
-  sudo iptables  -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443
-sudo ip6tables -t nat -C PREROUTING -p tcp --dport 80  -j REDIRECT --to-port 8080 2>/dev/null || \
-  sudo ip6tables -t nat -A PREROUTING -p tcp --dport 80  -j REDIRECT --to-port 8080
-sudo ip6tables -t nat -C PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443 2>/dev/null || \
-  sudo ip6tables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443
+# Scoped to eth0 so Docker container outbound traffic on these ports is not redirected
+sudo iptables  -t nat -C PREROUTING -i eth0 -p tcp --dport 80  -j REDIRECT --to-port 8080 2>/dev/null || \
+  sudo iptables  -t nat -A PREROUTING -i eth0 -p tcp --dport 80  -j REDIRECT --to-port 8080
+sudo iptables  -t nat -C PREROUTING -i eth0 -p tcp --dport 443 -j REDIRECT --to-port 8443 2>/dev/null || \
+  sudo iptables  -t nat -A PREROUTING -i eth0 -p tcp --dport 443 -j REDIRECT --to-port 8443
+sudo ip6tables -t nat -C PREROUTING -i eth0 -p tcp --dport 80  -j REDIRECT --to-port 8080 2>/dev/null || \
+  sudo ip6tables -t nat -A PREROUTING -i eth0 -p tcp --dport 80  -j REDIRECT --to-port 8080
+sudo ip6tables -t nat -C PREROUTING -i eth0 -p tcp --dport 443 -j REDIRECT --to-port 8443 2>/dev/null || \
+  sudo ip6tables -t nat -A PREROUTING -i eth0 -p tcp --dport 443 -j REDIRECT --to-port 8443
 
 echo "==> Starting temporary nginx for ACME challenges..."
 docker run -d --rm \
