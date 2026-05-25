@@ -6,6 +6,8 @@ services:
       - "127.0.0.1:8000:8000"
     networks:
       - internal
+    volumes:
+      - geoip_data:/app/geoip
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 5s
@@ -33,7 +35,21 @@ services:
       - ./certbot/conf:/etc/letsencrypt
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done'"
 
+  geoipupdate:
+    image: ghcr.io/maxmind/geoipupdate
+    restart: unless-stopped
+    environment:
+      - GEOIPUPDATE_ACCOUNT_ID=${MAXMIND_ACCOUNT_ID}
+      - GEOIPUPDATE_LICENSE_KEY=${MAXMIND_LICENSE_KEY}
+      - GEOIPUPDATE_EDITION_IDS=GeoLite2-City GeoLite2-ASN
+      - GEOIPUPDATE_FREQUENCY=168
+    volumes:
+      - geoip_data:/usr/share/GeoIP
+
 networks:
   internal:
     driver: bridge
     enable_ipv6: false
+
+volumes:
+  geoip_data:

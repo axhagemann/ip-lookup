@@ -4,7 +4,7 @@ A self-hosted webpage that displays a visitor's IPv4 and IPv6 addresses along wi
 
 ## How it works
 
-A single FastAPI backend serves one `/ip` endpoint. Two DNS subdomains — one with only an `A` record, one with only an `AAAA` record — force the browser to connect via each protocol separately. Nginx runs with `network_mode: host` so `$remote_addr` is always the real client IP (not a Docker-internal address). Geolocation is resolved server-side via [ipapi.co](https://ipapi.co).
+A single FastAPI backend serves one `/ip` endpoint. Two DNS subdomains — one with only an `A` record, one with only an `AAAA` record — force the browser to connect via each protocol separately. Nginx runs with `network_mode: host` so `$remote_addr` is always the real client IP (not a Docker-internal address). Geolocation is resolved server-side using a local [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) database (City + ASN), updated weekly by the `geoipupdate` container.
 
 ```
 Browser
@@ -20,6 +20,7 @@ Nginx listens on ports `8080`/`8443` internally. Host-level iptables rules forwa
 - Docker and Docker Compose installed
 - A domain with DNS management access
 - Ports `80` and `443` open in your firewall
+- A free [MaxMind account](https://www.maxmind.com/en/geolite2/signup) with a GeoLite2 license key
 
 Verify your server has both addresses:
 
@@ -43,7 +44,27 @@ curl -6 ifconfig.me   # should return an IPv6 address
 > `ip6.yourdomain.com` must have **only** an `AAAA` record (no `A`).
 > This forces each subdomain to be reachable via one protocol only.
 
-### 2. Update domain references
+### 2. MaxMind credentials
+
+Create a `.env` file from the example and fill in your MaxMind account ID and license key:
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Or set both values in one command:
+
+```bash
+cat > .env << EOF
+MAXMIND_ACCOUNT_ID=your_account_id
+MAXMIND_LICENSE_KEY=your_license_key
+EOF
+```
+
+You can find your account ID and generate a license key in the [MaxMind portal](https://www.maxmind.com/en/account) under **Services → My License Key**.
+
+### 3. Update domain references
 
 Replace `yourdomain.com` in:
 
@@ -83,7 +104,8 @@ docker compose down           # stop
 docker compose restart nginx  # reload nginx config
 docker compose logs -f        # all logs
 docker compose logs -f app    # FastAPI only
-docker compose logs -f nginx  # Nginx only
+docker compose logs -f nginx       # Nginx only
+docker compose logs -f geoipupdate # GeoLite2 database update
 ```
 
 ## HTTPS
@@ -134,16 +156,18 @@ When the limit is exceeded Nginx returns **HTTP 429** before the request reaches
 
 ### FastAPI (geo cache layer)
 
-`main.py` caches geolocation results in memory for **30 seconds** (up to 1,000 unique IPs). Repeated requests from the same IP skip the external ipapi.co call entirely.
+`main.py` caches geolocation results in memory for **1 hour** (up to 1,000 unique IPs). Repeated requests from the same IP reuse the cached result.
 
 ```python
-_GEO_TTL = 30     # cache lifetime in seconds
+_GEO_TTL = 3600   # cache lifetime in seconds
 _GEO_MAX = 1000   # max IPs to keep in memory
 ```
 
-## Geolocation limits
+## Geolocation
 
-Geolocation is provided by [ipapi.co](https://ipapi.co). The free tier allows **1,000 requests per day**. For higher volume, replace the provider in `main.py` with a self-hosted [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) database.
+Geolocation uses local [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) databases (City + ASN). Two `.mmdb` files are stored in a Docker volume and refreshed weekly by the `geoipupdate` container. No external API calls are made at request time.
+
+GeoLite2 is free but requires attribution. This database incorporates GeoLite2 data created by MaxMind, available from [maxmind.com](https://www.maxmind.com).
 
 ## Server housekeeping
 
@@ -177,11 +201,13 @@ sudo systemctl restart ssh
 ```
 ipinfo/
 ├── Dockerfile              # FastAPI app image (non-root)
-├── docker-compose.yml      # Orchestrates app + nginx + certbot
+├── docker-compose.yml      # Orchestrates app + nginx + certbot + geoipupdate
 ├── nginx.docker.conf       # Nginx reverse proxy (host network, ports 8080/8443)
 ├── nginx.init.conf         # Minimal HTTP config used only during bootstrap
 ├── nginx.conf              # Nginx config for non-Docker deployments
 ├── bootstrap.sh            # First-time setup: iptables + certs + stack start
+├── .env                    # MaxMind credentials (not in git)
+├── .env.example            # Credential template
 ├── .dockerignore
 ├── .gitignore
 ├── main.py                 # FastAPI app

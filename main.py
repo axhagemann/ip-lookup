@@ -5,7 +5,8 @@ from fastapi.staticfiles import StaticFiles
 from datetime import datetime, timezone
 from time import time
 import ipaddress
-import httpx
+import geoip2.database
+import geoip2.errors
 import logging
 
 logging.basicConfig(
@@ -39,8 +40,23 @@ app.add_middleware(
 )
 
 _geo_cache: dict[str, tuple[dict, float]] = {}
-_GEO_TTL = 30     # seconds before a cached result expires
+_GEO_TTL = 3600   # seconds before a cached result expires
 _GEO_MAX = 1000   # max entries to keep in memory
+
+_city_reader: geoip2.database.Reader | None = None
+_asn_reader: geoip2.database.Reader | None = None
+
+
+def _load_readers() -> None:
+    global _city_reader, _asn_reader
+    try:
+        _city_reader = geoip2.database.Reader("/app/geoip/GeoLite2-City.mmdb")
+        _asn_reader = geoip2.database.Reader("/app/geoip/GeoLite2-ASN.mmdb")
+    except FileNotFoundError:
+        logger.warning("GeoLite2 databases not found — geo lookups will be empty until geoipupdate runs")
+
+
+_load_readers()
 
 
 def _cache_get(ip: str) -> dict | None:
@@ -58,6 +74,29 @@ def _cache_set(ip: str, data: dict) -> None:
     _geo_cache[ip] = (data, time())
 
 
+def _geo_lookup(ip: str) -> dict:
+    if _city_reader is None:
+        return {}
+    geo = {}
+    try:
+        city = _city_reader.city(ip)
+        geo["country"] = city.country.name
+        geo["region"] = city.subdivisions.most_specific.name or None
+        geo["city"] = city.city.name
+        geo["latitude"] = city.location.latitude
+        geo["longitude"] = city.location.longitude
+        geo["timezone"] = city.location.time_zone
+    except geoip2.errors.AddressNotFoundError:
+        pass
+    if _asn_reader is not None:
+        try:
+            asn = _asn_reader.asn(ip)
+            geo["isp"] = f"AS{asn.autonomous_system_number} {asn.autonomous_system_organization}"
+        except geoip2.errors.AddressNotFoundError:
+            pass
+    return geo
+
+
 def _client_ip(request: Request) -> str:
     forwarded_for = request.headers.get("X-Forwarded-For")
     return forwarded_for.split(",")[0].strip() if forwarded_for else request.client.host
@@ -73,27 +112,12 @@ async def health():
 
 
 @app.get("/ip")
-async def get_ip(request: Request):
+def get_ip(request: Request):
     ip = _client_ip(request)
 
     geo = _cache_get(ip)
     if geo is None:
-        geo = {}
-        try:
-            async with httpx.AsyncClient(timeout=5) as client:
-                resp = await client.get(f"https://ipapi.co/{ip}/json/")
-                data = resp.json()
-                geo = {
-                    "country": data.get("country_name"),
-                    "region": data.get("region"),
-                    "city": data.get("city"),
-                    "latitude": data.get("latitude"),
-                    "longitude": data.get("longitude"),
-                    "isp": data.get("org"),
-                    "timezone": data.get("timezone"),
-                }
-        except Exception:
-            pass
+        geo = _geo_lookup(ip)
         _cache_set(ip, geo)
 
     return {"ip": ip, "geo": geo}
