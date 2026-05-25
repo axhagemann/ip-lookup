@@ -172,7 +172,7 @@ GeoLite2 is free but requires attribution. This database incorporates GeoLite2 d
 
 ## Umami analytics
 
-Umami runs at `https://alexander-hagemann.de/umami` alongside the main stack.
+Umami runs at `https://umami.alexander-hagemann.de` alongside the main stack.
 
 ### First-time setup
 
@@ -192,7 +192,7 @@ docker compose logs -f umami   # wait for "Ready"
 
 ### Post-deploy
 
-1. Open `https://alexander-hagemann.de/umami` and log in with `admin` / `umami`
+1. Open `https://umami.alexander-hagemann.de` and log in with `admin` / `umami`
 2. **Change the password immediately** (Settings → Profile)
 3. Go to Settings → Websites → Add website → copy the website ID
 4. Replace `REPLACE_WITH_WEBSITE_ID` in `static/index.html` with the real ID
