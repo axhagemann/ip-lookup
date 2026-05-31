@@ -40,6 +40,10 @@ docker run --rm \
 echo "==> Stopping temporary nginx..."
 docker stop nginx-init
 
+echo "==> Installing logrotate config for Docker logs..."
+sudo cp logrotate.conf /etc/logrotate.d/ipinfo
+sudo chmod 644 /etc/logrotate.d/ipinfo
+
 echo "==> Starting full stack..."
 docker compose up -d
 
