@@ -4,23 +4,29 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>My IP</title>
-<style>
+  <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: system-ui, sans-serif;
-      background: #f1f5f9;
-      color: #1e293b;
+      font-family: "Courier New", Courier, monospace;
+      background: #000;
+      color: #e0e0e0;
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 1.5rem;
-      padding: 2rem;
+      gap: 2rem;
+      padding: 2rem 2rem 5rem;
     }
 
-    h1 { font-size: 1.25rem; color: #64748b; letter-spacing: 0.05em; text-transform: uppercase; }
+    h1 {
+      font-size: 0.7rem;
+      color: #999;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+    h1::before { content: "// "; }
 
     .cards {
       display: flex;
@@ -32,40 +38,50 @@
     }
 
     .card {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 1.5rem 2rem;
+      border: 1px solid #222;
+      padding: 1.5rem;
       flex: 1;
       min-width: 280px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
     }
 
     .card-header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
       margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #1a1a1a;
     }
 
     .badge {
-      font-size: 0.7rem;
-      font-weight: 700;
-      padding: 0.2rem 0.5rem;
-      border-radius: 4px;
-      letter-spacing: 0.05em;
+      font-size: 0.65rem;
+      font-weight: bold;
+      padding: 0.15rem 0.45rem;
+      border: 1px solid;
+      letter-spacing: 0.1em;
+      font-family: "Courier New", Courier, monospace;
     }
 
-    .badge-v4 { background: #dbeafe; color: #1d4ed8; }
-    .badge-v6 { background: #ede9fe; color: #7c3aed; }
+    .badge-v4 { border-color: #e0e0e0; color: #e0e0e0; }
+    .badge-v6 { border-color: #999; color: #999; }
 
     .ip-value {
-      font-size: 1.65rem;
-      font-weight: 700;
-      font-family: monospace;
-      color: #0f172a;
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #fff;
       word-break: break-all;
       margin-bottom: 1.25rem;
+      letter-spacing: 0.02em;
+      min-height: 1.8rem;
+    }
+
+    .ip-value.loading { color: #999; }
+    .ip-value.loading::after {
+      content: "_";
+      color: #999;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
     }
 
     .geo-grid {
@@ -76,75 +92,68 @@
 
     .geo-item label {
       display: block;
-      font-size: 0.7rem;
-      color: #94a3b8;
+      font-size: 0.6rem;
+      color: #999;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.15rem;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.1rem;
     }
 
-    .geo-item span {
-      font-size: 0.95rem;
-      color: #334155;
-    }
+    .geo-item span { font-size: 0.85rem; color: #bbb; }
 
-    .unavailable {
-      color: #94a3b8;
-      font-style: italic;
-      font-size: 0.95rem;
-    }
+    .unavailable { color: #999; font-size: 1.25rem; }
 
     .copy-btn {
       background: none;
-      border: 1px solid #e2e8f0;
-      color: #64748b;
-      padding: 0.3rem 0.75rem;
-      border-radius: 6px;
+      border: 1px solid #222;
+      color: #999;
+      padding: 0.25rem 0.65rem;
       cursor: pointer;
-      font-size: 0.8rem;
+      font-size: 0.7rem;
+      font-family: "Courier New", Courier, monospace;
       margin-top: 1rem;
-      transition: border-color 0.15s, color 0.15s;
+      letter-spacing: 0.05em;
+      transition: border-color 0.1s, color 0.1s;
+    }
+    .copy-btn:hover  { border-color: #888; color: #e0e0e0; }
+    .copy-btn.copied { border-color: #fff; color: #fff; }
+
+    .footer {
+      position: fixed;
+      bottom: 1.25rem;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      align-items: flex-end;
     }
 
-    .copy-btn:hover { border-color: #94a3b8; color: #1e293b; }
-    .copy-btn.copied { color: #16a34a; border-color: #16a34a; }
+    .footer-links { display: flex; gap: 1.5rem; }
 
-    .loading { color: #94a3b8; font-style: italic; }
+    .footer a {
+      font-size: 0.6rem;
+      color: #999;
+      text-decoration: none;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .footer a:hover { color: #fff; }
+
+    .maxmind-notice { font-size: 0.6rem; color: #e0e0e0; }
+    .maxmind-notice a { color: #e0e0e0; }
+    .maxmind-notice a:hover { color: #fff; }
   </style>
 </head>
 <body>
   <h1>Your IP Address</h1>
-
-  <style>
-    .impressum-link {
-      position: fixed;
-      bottom: 1.25rem;
-      right: 1.5rem;
-      font-size: 0.75rem;
-      color: #475569;
-      text-decoration: none;
-    }
-    .impressum-link:hover { color: #1e293b; }
-    .maxmind-notice {
-      position: fixed;
-      bottom: 1.25rem;
-      left: 1.5rem;
-      font-size: 0.7rem;
-      color: #475569;
-    }
-    .maxmind-notice a { color: #475569; }
-    .maxmind-notice a:hover { color: #1e293b; }
-  </style>
-  <a class="impressum-link" href="/impressum.html">Impressum</a>
-  <a class="impressum-link" style="right: auto; left: 50%; transform: translateX(-50%);" href="/datenschutz.html">Datenschutz</a>
-  <p class="maxmind-notice">This product includes GeoLite2 data created by MaxMind, available from <a href="https://www.maxmind.com" target="_blank" rel="noopener">maxmind.com</a>.</p>
 
   <div class="cards">
     <div class="card" id="card-v4">
       <div class="card-header">
         <span class="badge badge-v4">IPv4</span>
       </div>
-      <div class="ip-value loading" id="ip-v4">Fetching...</div>
+      <div class="ip-value loading" id="ip-v4"></div>
       <div id="geo-v4"></div>
     </div>
 
@@ -152,8 +161,16 @@
       <div class="card-header">
         <span class="badge badge-v6">IPv6</span>
       </div>
-      <div class="ip-value loading" id="ip-v6">Fetching...</div>
+      <div class="ip-value loading" id="ip-v6"></div>
       <div id="geo-v6"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p class="maxmind-notice">This product includes GeoLite2 data created by MaxMind, available from <a href="https://www.maxmind.com" target="_blank" rel="noopener">maxmind.com</a></p>
+    <div class="footer-links">
+      <a href="/impressum.html">Impressum</a>
+      <a href="/datenschutz.html">Datenschutz</a>
     </div>
   </div>
 
