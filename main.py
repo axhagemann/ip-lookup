@@ -32,8 +32,10 @@ async def log_requests(request: Request, call_next):
     start = time()
     response = await call_next(request)
     duration_ms = (time() - start) * 1000
+    log_ip = _truncate_ip(_client_ip(request))
     logger.info(
-        "%s %s %d %.1fms",
+        "%s %s %s %d %.1fms",
+        log_ip,
         request.method,
         request.url.path,
         response.status_code,
@@ -115,7 +117,20 @@ def _geo_lookup(ip: str) -> dict:
 
 def _client_ip(request: Request) -> str:
     forwarded_for = request.headers.get("X-Forwarded-For")
-    return forwarded_for.split(",")[0].strip() if forwarded_for else request.client.host
+    return forwarded_for.split(",")[0].strip() if forwarded_for else (request.client.host if request.client else "unknown")
+
+
+def _truncate_ip(ip: str) -> str:
+    try:
+        addr = ipaddress.ip_address(ip)
+        if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped:
+            addr = addr.ipv4_mapped
+        if isinstance(addr, ipaddress.IPv4Address):
+            return str(ipaddress.IPv4Network(f"{addr}/24", strict=False).network_address)
+        else:
+            return str(ipaddress.IPv6Network(f"{addr}/48", strict=False).network_address)
+    except ValueError:
+        return ip
 
 
 def _is_browser(request: Request) -> bool:
