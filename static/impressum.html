@@ -3,117 +3,58 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Impressum</title>
+  <meta name="description" content="Impressum – IP Lookup von Alexander Hagemann" />
+  <title>Impressum – IP Lookup</title>
+  <link rel="stylesheet" href="/style.css" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: "Courier New", Courier, monospace;
-      background: #000;
-      color: #e0e0e0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 3rem 2rem;
-    }
-
-    .container {
-      width: 100%;
-      max-width: 640px;
-    }
-
-    .back {
-      display: inline-block;
-      margin-bottom: 2rem;
-      font-size: 0.75rem;
-      color: #999;
-      text-decoration: none;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
-    .back::before { content: "<- "; }
-    .back:hover { color: #aaa; }
-
-    h1 {
-      font-size: 0.75rem;
-      color: #999;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      margin-bottom: 2rem;
-    }
-    h1::before { content: "// "; }
-
-    .card {
-      border: 1px solid #1e1e1e;
-      padding: 2rem;
-      display: flex;
-      flex-direction: column;
-      gap: 1.75rem;
-    }
-
-    section h2 {
-      font-size: 0.6rem;
-      color: #999;
-      text-transform: uppercase;
-      letter-spacing: 0.15em;
-      margin-bottom: 0.6rem;
-    }
-    section h2::before { content: "// "; }
-
-    section p {
-      font-size: 0.9rem;
-      color: #bbb;
-      line-height: 1.7;
-    }
-
-    section a {
-      color: #e0e0e0;
-      text-decoration: none;
-    }
-    section a:hover { text-decoration: underline; }
+    body { padding: 3rem 2rem; }
   </style>
 </head>
 <body>
+  <a class="skip-link" href="#main">Zum Inhalt springen</a>
+
   <div class="container">
-    <a class="back" href="/">Zurück</a>
-    <h1>Impressum</h1>
+    <a class="back" href="/"><span aria-hidden="true">← </span>Zurück</a>
 
-    <div class="card">
-      <section>
-        <h2>Angaben gemäß § 5 DDG</h2>
-        <p>
-          Alexander Hagemann<br>
-          Angela-Molitoris-Platz 33<br>
-          81245 München<br>
-          Deutschland
-        </p>
-      </section>
+    <main id="main">
+      <h1><span aria-hidden="true">// </span>Impressum</h1>
 
-      <section>
-        <h2>Kontakt</h2>
-        <p>
-          Telefon: <a href="tel:+4915678332494">+49 15678 332494</a><br>
-          E-Mail: <a href="mailto:anfragen@alexander-hagemann.de">anfragen@alexander-hagemann.de</a>
-        </p>
-      </section>
+      <div class="card">
+        <section aria-labelledby="sec-angaben">
+          <h2 id="sec-angaben"><span aria-hidden="true">// </span>Angaben gemäß § 5 DDG</h2>
+          <p>
+            Alexander Hagemann<br>
+            Angela-Molitoris-Platz 33<br>
+            81245 München<br>
+            Deutschland
+          </p>
+        </section>
 
-      <section>
-        <h2>Datenschutz</h2>
-        <p>
-          Informationen zur Verarbeitung personenbezogener Daten finden Sie in der
-          <a href="/datenschutz.html">Datenschutzerklärung</a>.
-        </p>
-      </section>
+        <section aria-labelledby="sec-kontakt">
+          <h2 id="sec-kontakt"><span aria-hidden="true">// </span>Kontakt</h2>
+          <p>
+            Telefon: <a href="tel:+4915678332494" aria-label="Telefon +49 15678 332494">+49 15678 332494</a><br>
+            E-Mail: <a href="mailto:anfragen@alexander-hagemann.de">anfragen@alexander-hagemann.de</a>
+          </p>
+        </section>
 
-      <section>
-        <h2>Haftungsausschluss</h2>
-        <p>
-          Die Inhalte dieser Seite wurden mit größter Sorgfalt erstellt. Für die Richtigkeit,
-          Vollständigkeit und Aktualität der Inhalte kann jedoch keine Gewähr übernommen werden.
-        </p>
-      </section>
-    </div>
+        <section aria-labelledby="sec-datenschutz">
+          <h2 id="sec-datenschutz"><span aria-hidden="true">// </span>Datenschutz</h2>
+          <p>
+            Informationen zur Verarbeitung personenbezogener Daten finden Sie in der
+            <a href="/datenschutz.html">Datenschutzerklärung</a>.
+          </p>
+        </section>
+
+        <section aria-labelledby="sec-haftung">
+          <h2 id="sec-haftung"><span aria-hidden="true">// </span>Haftungsausschluss</h2>
+          <p>
+            Die Inhalte dieser Seite wurden mit größter Sorgfalt erstellt. Für die Richtigkeit,
+            Vollständigkeit und Aktualität der Inhalte kann jedoch keine Gewähr übernommen werden.
+          </p>
+        </section>
+      </div>
+    </main>
   </div>
 </body>
 </html>
