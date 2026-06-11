@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Look up your public IPv4 and IPv6 addresses with geolocation data. Returns JSON via HTTP GET." />
+  <title>IPv4 and IPv6 Lookup</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body {
+      justify-content: center;
+      gap: 2rem;
+      padding: 2rem 2rem 5rem;
+    }
+
+    .description {
+      font-size: 0.85rem;
+      color: #c0c0c0;
+      text-align: center;
+      max-width: 520px;
+      line-height: 1.7;
+    }
+
+    .api-hint {
+      font-size: 0.75rem;
+      color: #c0c0c0;
+      text-align: center;
+      max-width: 520px;
+      line-height: 1.9;
+    }
+
+    .api-hint code {
+      color: #c0c0c0;
+      background: #000;
+      border: 1px solid #555;
+      padding: 0.1rem 0.4rem;
+    }
+
+    .cards {
+      display: flex;
+      gap: 1.5rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+      max-width: 860px;
+    }
+
+    .card {
+      border: 1px solid #222;
+      padding: 1.5rem;
+      flex: 1;
+      min-width: 280px;
+    }
+
+    .card-header {
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #1a1a1a;
+    }
+
+    .card-header h2 {
+      display: inline-block;
+      font-size: 0.65rem;
+      font-weight: bold;
+      padding: 0.15rem 0.45rem;
+      border: 1px solid;
+      letter-spacing: 0.1em;
+      font-family: "Courier New", Courier, monospace;
+      text-transform: none;
+      color: inherit;
+    }
+
+    .badge-v4 { border-color: #e0e0e0; color: #e0e0e0; }
+    .badge-v6 { border-color: #c0c0c0; color: #c0c0c0; }
+
+    .ip-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #fff;
+      word-break: break-all;
+      margin-bottom: 1.25rem;
+      letter-spacing: 0.02em;
+      min-height: 1.8rem;
+    }
+
+    .ip-value.loading { color: #c0c0c0; }
+    .ip-value.loading::after {
+      content: "_";
+      color: #c0c0c0;
+      animation: blink 1s step-end infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ip-value.loading::after { animation: none; }
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0; }
+    }
+
+    .geo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.6rem 1rem;
+    }
+
+    .geo-item dt {
+      display: block;
+      font-size: 0.75rem;
+      color: #c0c0c0;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.1rem;
+    }
+
+    .geo-item dd { font-size: 0.85rem; color: #d0d0d0; }
+
+    .unavailable { color: #c0c0c0; font-size: 1.25rem; }
+
+    .copy-btn {
+      background: none;
+      border: 1px solid #555;
+      color: #c0c0c0;
+      padding: 0.25rem 0.65rem;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-family: "Courier New", Courier, monospace;
+      margin-top: 1rem;
+      letter-spacing: 0.05em;
+      transition: border-color 0.1s, color 0.1s;
+    }
+    .copy-btn:hover  { border-color: #888; color: #e0e0e0; }
+    .copy-btn.copied { border-color: #fff; color: #fff; }
+
+    footer {
+      position: fixed;
+      bottom: 1.25rem;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 1.5rem;
+      align-items: flex-end;
+    }
+
+    .footer-links { display: flex; gap: 1.5rem; }
+
+    .footer-links a {
+      font-size: 0.75rem;
+      color: #c0c0c0;
+      text-decoration: none;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .footer-links a:hover { color: #fff; }
+
+    .maxmind-notice { font-size: 0.75rem; color: #e0e0e0; }
+    .maxmind-notice a { color: #e0e0e0; }
+    .maxmind-notice a:hover { color: #fff; }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <main id="main">
+    <a class="back" href="/"><span aria-hidden="true">← </span>Home</a>
+
+    <h1><span aria-hidden="true">// </span>Your IP Address</h1>
+
+    <p class="description">
+      Detects your public IPv4 and IPv6 addresses along with geolocation data.
+      Both addresses are resolved independently so dual-stack connections show both.
+    </p>
+
+    <p class="api-hint">
+      Returns JSON via HTTP GET &mdash;
+      <code>GET https://ip4.alexander-hagemann.de/ip</code>
+      &nbsp;/&nbsp;
+      <code>GET https://ip6.alexander-hagemann.de/ip</code>
+    </p>
+
+    <div class="cards">
+      <section class="card" id="card-v4" aria-labelledby="label-v4">
+        <div class="card-header">
+          <h2 id="label-v4" class="badge-v4">IPv4</h2>
+        </div>
+        <div class="ip-value loading" id="ip-v4" aria-live="polite" aria-atomic="true"></div>
+        <div id="geo-v4" aria-live="polite"></div>
+      </section>
+
+      <section class="card" id="card-v6" aria-labelledby="label-v6">
+        <div class="card-header">
+          <h2 id="label-v6" class="badge-v6">IPv6</h2>
+        </div>
+        <div class="ip-value loading" id="ip-v6" aria-live="polite" aria-atomic="true"></div>
+        <div id="geo-v6" aria-live="polite"></div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <p class="maxmind-notice">This product includes GeoLite2 data created by MaxMind, available from <a href="https://www.maxmind.com" target="_blank" rel="noopener" aria-label="maxmind.com (opens in a new tab)">maxmind.com</a></p>
+    <nav class="footer-links" aria-label="Legal">
+      <a href="/impressum.html" lang="de">Impressum</a>
+      <a href="/datenschutz.html" lang="de">Datenschutz</a>
+    </nav>
+  </footer>
+
+  <script>
+    const IPV4_ENDPOINT = "https://ip4.alexander-hagemann.de/ip";
+    const IPV6_ENDPOINT = "https://ip6.alexander-hagemann.de/ip";
+
+    function renderGeo(geo) {
+      if (!geo || Object.keys(geo).length === 0) return null;
+      const fields = [
+        ["Country", geo.country],
+        ["Region", geo.region],
+        ["City", geo.city],
+        ["ISP", geo.isp],
+        ["Timezone", geo.timezone],
+        ["Coordinates", geo.latitude && geo.longitude
+          ? `${geo.latitude}, ${geo.longitude}` : null],
+      ];
+      const dl = document.createElement("dl");
+      dl.className = "geo-grid";
+      fields.filter(([, v]) => v).forEach(([label, value]) => {
+        const div = document.createElement("div");
+        div.className = "geo-item";
+        const dt = document.createElement("dt");
+        dt.textContent = label;
+        const dd = document.createElement("dd");
+        dd.textContent = value;
+        div.append(dt, dd);
+        dl.appendChild(div);
+      });
+      return dl;
+    }
+
+    function makeCopyBtn(ip, version) {
+      const btn = document.createElement("button");
+      btn.className = "copy-btn";
+      btn.textContent = "Copy IP";
+      btn.setAttribute("aria-label", `Copy ${version} address ${ip}`);
+      btn.addEventListener("click", async () => {
+        await navigator.clipboard.writeText(ip);
+        btn.removeAttribute("aria-label");
+        btn.textContent = "Copied!";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.textContent = "Copy IP";
+          btn.setAttribute("aria-label", `Copy ${version} address ${ip}`);
+          btn.classList.remove("copied");
+        }, 1500);
+      });
+      return btn;
+    }
+
+    async function fetchIP(endpoint, ipEl, geoEl, version) {
+      ipEl.setAttribute("aria-busy", "true");
+      ipEl.setAttribute("aria-label", "Loading");
+      try {
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error();
+        const { ip, geo } = await res.json();
+        ipEl.textContent = ip;
+        ipEl.classList.remove("loading");
+        ipEl.removeAttribute("aria-busy");
+        ipEl.removeAttribute("aria-label");
+        geoEl.replaceChildren(...[renderGeo(geo), makeCopyBtn(ip, version)].filter(Boolean));
+      } catch {
+        ipEl.textContent = "Not available";
+        ipEl.classList.add("unavailable");
+        ipEl.classList.remove("loading");
+        ipEl.removeAttribute("aria-busy");
+        ipEl.removeAttribute("aria-label");
+      }
+    }
+
+    fetchIP(IPV4_ENDPOINT, document.getElementById("ip-v4"), document.getElementById("geo-v4"), "IPv4");
+    fetchIP(IPV6_ENDPOINT, document.getElementById("ip-v6"), document.getElementById("geo-v6"), "IPv6");
+  </script>
+</body>
+</html>

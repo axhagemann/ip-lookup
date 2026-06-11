@@ -69,7 +69,7 @@ You can find your account ID and generate a license key in the [MaxMind portal](
 Replace `yourdomain.com` in:
 
 **`nginx.docker.conf`** — `server_name` directives  
-**`static/index.html`** — two endpoint constants  
+**`static/getip.html`** — two endpoint constants  
 **`bootstrap.sh`** — `DOMAIN` variable
 
 ## Deployment
@@ -214,5 +214,9 @@ ipinfo/
 ├── main.py                 # FastAPI app
 ├── requirements.txt
 └── static/
-    └── index.html          # Frontend
+    ├── index.html          # Landing page
+    ├── getip.html          # IP lookup tool
+    ├── impressum.html
+    ├── datenschutz.html
+    └── style.css
 ```

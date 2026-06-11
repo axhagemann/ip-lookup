@@ -154,6 +154,11 @@ def get_ip(request: Request):
     return {"ip": ip, "geo": geo}
 
 
+@app.get("/getip")
+async def getip():
+    return FileResponse("static/getip.html")
+
+
 @app.get("/")
 async def index(request: Request):
     if _is_browser(request):
