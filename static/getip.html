@@ -34,7 +34,7 @@
     .api-hint code {
       color: #c0c0c0;
       background: #000;
-      border: 1px solid #555;
+      border: 1px solid #666;
       padding: 0.1rem 0.4rem;
     }
 
@@ -62,7 +62,7 @@
 
     .card-header h2 {
       display: inline-block;
-      font-size: 0.65rem;
+      font-size: 0.75rem;
       font-weight: bold;
       padding: 0.15rem 0.45rem;
       border: 1px solid;
@@ -118,11 +118,11 @@
 
     .geo-item dd { font-size: 0.85rem; color: #d0d0d0; }
 
-    .unavailable { color: #c0c0c0; font-size: 1.25rem; }
+    .unavailable { color: #c0c0c0; font-size: 1.5rem; font-weight: 400; }
 
     .copy-btn {
       background: none;
-      border: 1px solid #555;
+      border: 1px solid #666;
       color: #c0c0c0;
       padding: 0.25rem 0.65rem;
       cursor: pointer;
@@ -134,6 +134,7 @@
     }
     .copy-btn:hover  { border-color: #888; color: #e0e0e0; }
     .copy-btn.copied { border-color: #fff; color: #fff; }
+    .copy-btn.failed { border-color: #888; border-style: dashed; color: #e0e0e0; }
 
     footer {
       position: fixed;
@@ -146,7 +147,21 @@
       align-items: flex-end;
     }
 
-    .footer-links { display: flex; gap: 1.5rem; }
+    @media (max-width: 640px) {
+      body { padding: 2rem 1.5rem 3rem; }
+
+      footer {
+        position: static;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0 1.5rem;
+        text-align: center;
+        margin-top: 1rem;
+      }
+    }
+
+    .footer-links { display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center; }
 
     .footer-links a {
       font-size: 0.75rem;
@@ -245,15 +260,26 @@
       btn.textContent = "Copy IP";
       btn.setAttribute("aria-label", `Copy ${version} address ${ip}`);
       btn.addEventListener("click", async () => {
-        await navigator.clipboard.writeText(ip);
-        btn.removeAttribute("aria-label");
-        btn.textContent = "Copied!";
-        btn.classList.add("copied");
-        setTimeout(() => {
-          btn.textContent = "Copy IP";
-          btn.setAttribute("aria-label", `Copy ${version} address ${ip}`);
-          btn.classList.remove("copied");
-        }, 1500);
+        try {
+          await navigator.clipboard.writeText(ip);
+          btn.removeAttribute("aria-label");
+          btn.textContent = "Copied!";
+          btn.classList.add("copied");
+          setTimeout(() => {
+            btn.textContent = "Copy IP";
+            btn.setAttribute("aria-label", `Copy ${version} address ${ip}`);
+            btn.classList.remove("copied");
+          }, 1500);
+        } catch {
+          btn.setAttribute("aria-label", `Copy failed for ${version} address ${ip}`);
+          btn.textContent = "Copy failed";
+          btn.classList.add("failed");
+          setTimeout(() => {
+            btn.textContent = "Copy IP";
+            btn.setAttribute("aria-label", `Copy ${version} address ${ip}`);
+            btn.classList.remove("failed");
+          }, 1500);
+        }
       });
       return btn;
     }
@@ -271,7 +297,10 @@
         ipEl.removeAttribute("aria-label");
         geoEl.replaceChildren(...[renderGeo(geo), makeCopyBtn(ip, version)].filter(Boolean));
       } catch {
-        ipEl.textContent = "Not available";
+        const message = version === "IPv6"
+          ? "No IPv6 route detected on this network."
+          : "Couldn't reach the server. Check your connection and try again.";
+        ipEl.innerHTML = `<span aria-hidden="true">! </span>${message}`;
         ipEl.classList.add("unavailable");
         ipEl.classList.remove("loading");
         ipEl.removeAttribute("aria-busy");

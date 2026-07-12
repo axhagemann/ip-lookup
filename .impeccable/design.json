@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-12T19:16:24Z",
+  "title": "Design System: ipinfo",
+  "extensions": {
+    "colorMeta": {
+      "surface-bg": { "role": "neutral", "displayName": "Void Black", "canonical": "oklch(0% 0 0)", "tonalRamp": ["#000000", "#0d0d0d", "#1a1a1a", "#333333", "#4d4d4d", "#808080", "#b3b3b3", "#f2f2f2"] },
+      "ink-bright": { "role": "neutral", "displayName": "Bright White", "canonical": "oklch(100% 0 0)", "tonalRamp": ["#1a1a1a", "#333333", "#4d4d4d", "#666666", "#999999", "#cccccc", "#e6e6e6", "#ffffff"] },
+      "ink-primary": { "role": "neutral", "displayName": "Primary Ink", "canonical": "oklch(88% 0 0)", "tonalRamp": ["#1a1a1a", "#333333", "#4d4d4d", "#666666", "#999999", "#b3b3b3", "#cccccc", "#e0e0e0"] },
+      "ink-muted": { "role": "neutral", "displayName": "Muted Ink", "canonical": "oklch(78% 0 0)", "tonalRamp": ["#1a1a1a", "#333333", "#4d4d4d", "#666666", "#808080", "#999999", "#adadad", "#c0c0c0"] },
+      "ink-soft": { "role": "neutral", "displayName": "Soft Ink", "canonical": "oklch(84% 0 0)", "tonalRamp": ["#1a1a1a", "#333333", "#4d4d4d", "#666666", "#858585", "#a3a3a3", "#bdbdbd", "#d0d0d0"] },
+      "border-faint": { "role": "neutral", "displayName": "Border Faint", "canonical": "oklch(12% 0 0)", "tonalRamp": ["#000000", "#0d0d0d", "#1a1a1a", "#262626", "#404040", "#595959", "#737373", "#8c8c8c"] },
+      "border-subtle": { "role": "neutral", "displayName": "Border Subtle", "canonical": "oklch(13% 0 0)", "tonalRamp": ["#000000", "#0d0d0d", "#1e1e1e", "#292929", "#434343", "#5c5c5c", "#767676", "#8f8f8f"] },
+      "border-default": { "role": "neutral", "displayName": "Border Default", "canonical": "oklch(17% 0 0)", "tonalRamp": ["#000000", "#0d0d0d", "#222222", "#333333", "#4d4d4d", "#666666", "#808080", "#999999"] },
+      "border-strong": { "role": "neutral", "displayName": "Border Strong", "canonical": "oklch(45% 0 0)", "tonalRamp": ["#0d0d0d", "#1a1a1a", "#333333", "#4d4d4d", "#666666", "#808080", "#999999", "#bfbfbf"] },
+      "border-hover": { "role": "neutral", "displayName": "Border Hover", "canonical": "oklch(60% 0 0)", "tonalRamp": ["#1a1a1a", "#333333", "#4d4d4d", "#666666", "#808080", "#888888", "#b3b3b3", "#cccccc"] }
+    },
+    "typographyMeta": {
+      "value": { "displayName": "Value", "purpose": "The resolved IP address itself — largest, brightest text on any screen." },
+      "label": { "displayName": "Heading / Label", "purpose": "Page titles, doubling as the '// '-prefixed terminal-comment heading." },
+      "body": { "displayName": "Body", "purpose": "Descriptions and explanatory copy." },
+      "caption": { "displayName": "Caption / Meta", "purpose": "Geo field labels, footer links, API hints — the quietest text in the system." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "cursor-blink", "value": "blink 1s step-end infinite", "purpose": "Trailing '_' cursor appended to a value while it loads; disabled under prefers-reduced-motion." },
+      { "name": "border-transition", "value": "border-color 0.1s, color 0.1s", "purpose": "Default hover transition for buttons and bordered links." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Copy Button",
+      "kind": "button",
+      "refersTo": "button-copy",
+      "description": "Copies the resolved IP address; shows a 'Copied!' confirmed state.",
+      "html": "<button class=\"ds-btn-copy\">Copy IP</button>",
+      "css": ".ds-btn-copy { background: none; border: 1px solid #666666; color: #c0c0c0; padding: 0.25rem 0.65rem; font-family: 'Courier New', Courier, monospace; font-size: 0.75rem; letter-spacing: 0.05em; cursor: pointer; transition: border-color 0.1s, color 0.1s; } .ds-btn-copy:hover { border-color: #888888; color: #e0e0e0; } .ds-btn-copy:focus-visible { outline: 2px solid #e0e0e0; outline-offset: 3px; } .ds-btn-copy.ds-copied { border-color: #ffffff; color: #ffffff; } .ds-btn-copy.ds-failed { border-color: #888888; border-style: dashed; color: #e0e0e0; }"
+    },
+    {
+      "name": "Lookup Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Groups an IP value with its geo fields; border-only, no shadow or fill.",
+      "html": "<section class=\"ds-card\"><div class=\"ds-card-header\"><span class=\"ds-badge\">IPv4</span></div><div class=\"ds-card-value\">203.0.113.42</div></section>",
+      "css": ".ds-card { border: 1px solid #222222; background: #000000; padding: 1.5rem; } .ds-card-header { margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid #1a1a1a; } .ds-card-value { font-family: 'Courier New', Courier, monospace; font-size: 1.5rem; font-weight: 700; color: #ffffff; letter-spacing: 0.02em; }"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Inline label naming a card's protocol (IPv4 / IPv6); border matches the ink color it names.",
+      "html": "<span class=\"ds-badge\">IPv4</span>",
+      "css": ".ds-badge { display: inline-block; font-family: 'Courier New', Courier, monospace; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; padding: 0.15rem 0.45rem; border: 1px solid #e0e0e0; color: #e0e0e0; }"
+    },
+    {
+      "name": "Tool Link",
+      "kind": "nav",
+      "refersTo": "tool-link",
+      "description": "Full-bleed bordered block linking to a tool from the index page.",
+      "html": "<a class=\"ds-tool-link\" href=\"/getip\"><h2>IP Lookup</h2><p>Check your public IPv4 and IPv6 addresses.</p></a>",
+      "css": ".ds-tool-link { display: block; border: 1px solid #222222; padding: 1.25rem 1.5rem; text-decoration: none; color: inherit; transition: border-color 0.1s; } .ds-tool-link:hover { border-color: #555555; } .ds-tool-link h2 { font-family: 'Courier New', Courier, monospace; font-size: 0.8rem; color: #e0e0e0; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.4rem; } .ds-tool-link p { font-family: 'Courier New', Courier, monospace; font-size: 0.8rem; color: #c0c0c0; line-height: 1.6; }"
+    },
+    {
+      "name": "Footer Link",
+      "kind": "nav",
+      "refersTo": "footer-link",
+      "description": "Bare uppercase-tracked legal/nav link used in every page footer.",
+      "html": "<a class=\"ds-footer-link\" href=\"/impressum.html\">Impressum</a>",
+      "css": ".ds-footer-link { font-family: 'Courier New', Courier, monospace; font-size: 0.75rem; color: #c0c0c0; text-decoration: none; letter-spacing: 0.1em; text-transform: uppercase; } .ds-footer-link:hover { color: #ffffff; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Terminal",
+    "overview": "A console that only speaks when it has something precise to say. The system is pure black-on-gray monospace, built from borders instead of surfaces and silence instead of ornament — every screen reads like a `//`-commented terminal session rather than a product page. Density is low, contrast is high, and the only motion is a blinking cursor while data loads. This explicitly rejects the ad-heavy \"what's my ip\" sites the project positions itself against: no banners, no gradient CTAs, no filler copy competing for attention. It also rejects generic SaaS chrome — no rounded cards, no shadows, no color for color's sake. Right now the palette is monochrome by choice, not by omission: a single retro-terminal accent (phosphor green or amber) is planned for a future pass but deliberately not yet introduced, so this system currently documents a grayscale-only state.",
+    "keyCharacteristics": [
+      "Pure black background, grayscale ink ramp, zero hue",
+      "Square corners everywhere — no border-radius in the system",
+      "Borders substitute for elevation; there are no shadows",
+      "One monospace family end to end, no display/body pairing",
+      "The `// ` prefix reads as a terminal comment marker, used on every heading"
+    ],
+    "rules": [
+      { "name": "The No-Hue Rule", "body": "Every color in this system is desaturated gray or pure black/white. Nothing is tinted toward warm or cool. If a color swatch has any chroma, it doesn't belong here — yet.", "section": "colors" },
+      { "name": "The Reserved Accent Rule", "body": "PRODUCT.md commits to exactly one future retro-terminal accent (phosphor green or amber), used sparingly (focus states, the loading cursor, one label). It does not exist in the codebase today. Do not introduce an accent color piecemeal — it lands as one deliberate decision, not a gradual creep.", "section": "colors" },
+      { "name": "The Comment-Marker Rule", "body": "Every heading is prefixed with `// ` (rendered aria-hidden so it doesn't pollute the accessible name). It's the one recurring typographic signature in the system — don't drop it, and don't add a second decorative prefix alongside it.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces never lift, blur, or cast shadow. If something needs to read as \"grouped,\" give it a border (border-default or border-subtle); if it needs to read as \"interactive,\" change the border color on hover/focus. Never add box-shadow.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep every corner square — border-radius is 0px everywhere in this system, no exceptions.",
+      "Do use borders, not shadows, for grouping and elevation.",
+      "Do keep the `// ` (heading) and `← ` (back link) aria-hidden comment-marker prefixes when adding new pages.",
+      "Do pair any new loading state with a prefers-reduced-motion: reduce fallback, matching the existing blinking-cursor pattern.",
+      "Do treat the IP/value text as the one place bold white (#ffffff) appears — it should stay the brightest thing on any screen."
+    ],
+    "donts": [
+      "Don't build ad-heavy \"what's my ip\" site patterns: no banner ads, no trackers, no SEO filler copy around the lookup.",
+      "Don't introduce a rounded corner, a shadow, or a gradient anywhere — all three are absent by design, not by oversight.",
+      "Don't add color piecemeal. The system is grayscale-only until the single reserved retro accent (phosphor green or amber) is introduced as one deliberate decision across the whole site.",
+      "Don't pair a second display font with the existing monospace — the one-family system is the point, not a placeholder.",
+      "Don't use a side-stripe border (border-left/border-right as a colored accent) — every border in this system is a full rectangle outline."
+    ]
+  }
+}

@@ -9,3 +9,6 @@ certbot/
 __pycache__/
 *.pyc
 *.pyo
+
+# Impeccable local hook cache (session state, not project config)
+.impeccable/hook.cache.json
