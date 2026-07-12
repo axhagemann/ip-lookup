@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IPv4 and IPv6 Lookup</title>
+<style>
+  :root{
+    --bg: #08110b;
+    --bg-crt: #0b1710;
+    --green: #4fe870;
+    --green-dim: #3aa85c;
+    --green-faint: #4a8f63;
+    --amber: #ffb300;
+    --text: #c9f4d3;
+    --border: #1f5230;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html,body{
+    margin:0;
+    min-height:100vh;
+    background: radial-gradient(ellipse at 50% 0%, var(--bg-crt) 0%, var(--bg) 70%);
+    font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Menlo', 'Consolas', 'Liberation Mono', monospace;
+    color: var(--text);
+  }
+
+  body{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 32px 16px;
+  }
+
+  /* subtle CRT scanline + flicker, signature element */
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(0,0,0,0) 0px,
+      rgba(0,0,0,0.12) 1px,
+      rgba(0,0,0,0) 3px
+    );
+    mix-blend-mode: multiply;
+    z-index: 5;
+  }
+
+  @keyframes flicker{
+    0%,100%{ opacity: 1; }
+    92%{ opacity: 1; }
+    93%{ opacity: 0.94; }
+    94%{ opacity: 1; }
+  }
+
+  .term{
+    width: 100%;
+    max-width: 720px;
+    background: rgba(6, 14, 9, 0.9);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow:
+      0 0 0 1px rgba(79,232,112,0.05),
+      0 20px 60px rgba(0,0,0,0.6),
+      0 0 80px -20px rgba(79,232,112,0.15);
+    overflow: hidden;
+    animation: flicker 6s infinite;
+  }
+
+  .titlebar{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: #0d1a11;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dot{ width:10px; height:10px; border-radius:50%; }
+  .dot.r{ background:#e05a4e; }
+  .dot.y{ background:#e0b24e; }
+  .dot.g{ background:#4ee073; }
+
+  .titlebar .path{
+    margin-left: 8px;
+    font-size: 12px;
+    color: var(--green-dim);
+  }
+
+  .screen{
+    padding: 22px 22px 26px;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  a{ color: var(--green); }
+
+  .home{
+    color: var(--green-dim);
+    text-decoration:none;
+    font-size: 14px;
+  }
+  .home:hover{ color: var(--green); }
+
+  .heading{
+    color: var(--green);
+    font-weight: 700;
+    font-size: 15px;
+    margin: 18px 0 4px;
+  }
+
+  .desc{
+    color: var(--text);
+    opacity: 0.85;
+    margin: 0 0 4px;
+  }
+  .desc.sub{ opacity: 0.6; font-size: 13px; }
+
+  .divider{
+    color: var(--green-faint);
+    white-space: pre;
+    margin: 16px 0 4px;
+    font-size: 13px;
+  }
+
+  .cmd-line{
+    margin: 10px 0 2px;
+    color: var(--green-dim);
+    font-size: 14px;
+  }
+  .cmd-line .prompt{ color: var(--amber); }
+
+  .block{
+    border-left: 2px solid var(--border);
+    padding-left: 14px;
+    margin: 10px 0 22px;
+  }
+
+  .block-label{
+    color: var(--green-dim);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .row{
+    display:flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .ip-value{
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: 0.01em;
+  }
+
+  .cursor{
+    display:inline-block;
+    width: 9px;
+    height: 16px;
+    background: var(--green);
+    vertical-align: -3px;
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink{ 50%{ opacity: 0; } }
+
+  .geo{
+    color: var(--text);
+    opacity: 0.75;
+    font-size: 14px;
+    margin-top: 4px;
+  }
+
+  .copy-btn{
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--green-dim);
+    font-family: inherit;
+    font-size: 13px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .copy-btn:hover{
+    color: var(--green);
+    border-color: var(--green-dim);
+  }
+  .copy-btn:focus-visible, a:focus-visible, .json-toggle:focus-visible{
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+  .copy-btn.copied{ color: var(--amber); border-color: var(--amber); }
+
+  .unavailable{
+    color: var(--green-faint);
+    font-style: italic;
+    font-size: 14px;
+  }
+
+  .json-toggle{
+    background:none;
+    border:none;
+    color: var(--green-dim);
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0;
+    margin-top: 18px;
+  }
+  .json-toggle:hover{ color: var(--green); }
+
+  pre.json{
+    display:none;
+    margin-top: 10px;
+    padding: 12px 14px;
+    background: #050a06;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--green-dim);
+    overflow-x: auto;
+  }
+  pre.json.open{ display:block; }
+  pre.json .k{ color: var(--green-dim); }
+  pre.json .v{ color: var(--green); }
+
+  footer{
+    margin-top: 22px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--green-faint);
+    display:flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  footer a{ color: var(--green-faint); }
+  footer a:hover{ color: var(--green-dim); }
+
+  @media (prefers-reduced-motion: reduce){
+    .term{ animation: none; }
+    .cursor{ animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="term">
+  <div class="titlebar">
+    <span class="dot r"></span>
+    <span class="dot y"></span>
+    <span class="dot g"></span>
+    <span class="path">getip — 80×24</span>
+  </div>
+
+  <div class="screen">
+    <a class="home" href="#">&larr; Home</a>
+
+    <div class="heading">// Your IP Address</div>
+    <p class="desc">Detects your public IPv4 and IPv6 addresses with geolocation data.</p>
+    <p class="desc sub">Both are resolved independently — dual-stack connections show both.</p>
+
+    <div class="cmd-line"><span class="prompt">$</span> curl ip4.alexander-hagemann.de/ip</div>
+    <div class="block">
+      <div class="block-label">IPv4</div>
+      <div class="row">
+        <span class="ip-value" id="ipv4-value">fetching<span class="cursor"></span></span>
+        <button class="copy-btn" id="copy-v4" style="display:none;">copy</button>
+      </div>
+      <div class="geo" id="ipv4-geo"></div>
+    </div>
+
+    <div class="cmd-line"><span class="prompt">$</span> curl ip6.alexander-hagemann.de/ip</div>
+    <div class="block">
+      <div class="block-label">IPv6</div>
+      <div class="row">
+        <span class="ip-value" id="ipv6-value">fetching<span class="cursor"></span></span>
+        <button class="copy-btn" id="copy-v6" style="display:none;">copy</button>
+      </div>
+      <div class="geo" id="ipv6-geo"></div>
+    </div>
+
+    <button class="json-toggle" id="json-toggle">▸ view raw JSON response</button>
+    <pre class="json" id="json-block"></pre>
+
+    <footer>
+      <span>data: MaxMind GeoLite2</span>
+      <span>
+        <a href="#">Impressum</a> ·
+        <a href="#">Datenschutz</a> ·
+        <a href="#">Privacy</a>
+      </span>
+    </footer>
+  </div>
+</div>
+
+<script>
+  async function resolveIP(url, valueEl, geoEl, copyBtn, key, jsonStore){
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
+      if(!res.ok) throw new Error('bad response');
+      const data = await res.json();
+      const ip = data.ip || data.address || Object.values(data)[0];
+      renderResult(ip, data.city && data.country ? `${data.city}, ${data.country}` : (data.country || ''), valueEl, geoEl, copyBtn, key, data, jsonStore);
+    } catch(e){
+      // demo fallback so the mockup is visible without live network access
+      const mock = key === 'v4'
+        ? { ip: '203.0.113.42', city: 'Berlin', country: 'DE' }
+        : { ip: '2001:db8:85a3::8a2e:370:7334', city: 'Berlin', country: 'DE' };
+      renderResult(mock.ip, `${mock.city}, ${mock.country} · demo data`, valueEl, geoEl, copyBtn, key, mock, jsonStore);
+    }
+  }
+
+  function renderResult(ip, geoText, valueEl, geoEl, copyBtn, key, raw, jsonStore){
+    if(!ip){
+      valueEl.innerHTML = '';
+      valueEl.parentElement.parentElement.querySelector('.row').insertAdjacentHTML('afterbegin', '');
+      valueEl.textContent = '';
+      valueEl.parentElement.innerHTML = '<span class="unavailable">not detected on this connection</span>';
+      return;
+    }
+    valueEl.innerHTML = '';
+    typeText(valueEl, ip, () => {
+      copyBtn.style.display = 'inline-block';
+    });
+    geoEl.textContent = geoText;
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(ip);
+      copyBtn.textContent = 'copied';
+      copyBtn.classList.add('copied');
+      setTimeout(() => { copyBtn.textContent = 'copy'; copyBtn.classList.remove('copied'); }, 1400);
+    });
+    jsonStore[key] = raw;
+    updateJSON(jsonStore);
+  }
+
+  function typeText(el, text, done){
+    let i = 0;
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    function step(){
+      el.textContent = text.slice(0, i);
+      el.appendChild(cursor);
+      i++;
+      if(i <= text.length){
+        setTimeout(step, 18);
+      } else if(done){
+        cursor.remove();
+        done();
+      }
+    }
+    step();
+  }
+
+  function updateJSON(jsonStore){
+    const block = document.getElementById('json-block');
+    block.textContent = JSON.stringify(jsonStore, null, 2);
+  }
+
+  const jsonStore = {};
+  resolveIP('https://ip4.alexander-hagemann.de/ip', document.getElementById('ipv4-value'), document.getElementById('ipv4-geo'), document.getElementById('copy-v4'), 'v4', jsonStore);
+  resolveIP('https://ip6.alexander-hagemann.de/ip', document.getElementById('ipv6-value'), document.getElementById('ipv6-geo'), document.getElementById('copy-v6'), 'v6', jsonStore);
+
+  const toggle = document.getElementById('json-toggle');
+  const jsonBlock = document.getElementById('json-block');
+  toggle.addEventListener('click', () => {
+    const open = jsonBlock.classList.toggle('open');
+    toggle.textContent = (open ? '▾' : '▸') + ' view raw JSON response';
+  });
+</script>
+
+</body>
+</html>
