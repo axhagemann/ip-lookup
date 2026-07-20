@@ -1,8 +1,12 @@
-# ipinfo
+# Personal Tools
 
-A self-hosted webpage that displays a visitor's IPv4 and IPv6 addresses along with geolocation data (country, region, city, ISP, coordinates, timezone).
+A self-hosted collection of small network utilities, served as a single FastAPI + static-site app.
 
-## How it works
+## IP Lookup
+
+Displays a visitor's IPv4 and IPv6 addresses along with geolocation data (country, region, city, ISP, coordinates, timezone).
+
+### How it works
 
 A single FastAPI backend serves one `/ip` endpoint. Two DNS subdomains — one with only an `A` record, one with only an `AAAA` record — force the browser to connect via each protocol separately. Nginx runs with `network_mode: host` so `$remote_addr` is always the real client IP (not a Docker-internal address). Geolocation is resolved server-side using a local [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data) database (City + ASN), updated weekly by the `geoipupdate` container.
 
@@ -13,6 +17,12 @@ Browser
 ```
 
 Nginx listens on ports `8080`/`8443` internally. Host-level iptables rules forward `80→8080` and `443→8443`, allowing the unprivileged nginx container to handle public traffic without root.
+
+## CIDR Calculator
+
+Given an IPv4 or IPv6 address and a prefix length (e.g. `192.168.1.10` / `24`), computes the start (network) and end (broadcast/last) address of that range.
+
+Served at `/cidr` (`static/cidr.html`). The calculation runs entirely client-side in JavaScript — no backend request is made, so it works even if the GeoLite2 databases or geo cache are unavailable.
 
 ## Prerequisites
 
@@ -216,6 +226,7 @@ ipinfo/
 └── static/
     ├── index.html          # Landing page
     ├── getip.html          # IP lookup tool
+    ├── cidr.html           # CIDR range calculator
     ├── impressum.html
     ├── datenschutz.html
     └── style.css
