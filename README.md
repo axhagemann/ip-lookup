@@ -24,6 +24,17 @@ Given an IPv4 or IPv6 address and a prefix length (e.g. `192.168.1.10` / `24`), 
 
 Served at `/cidr` (`static/cidr.html`). The calculation runs entirely client-side in JavaScript — no backend request is made, so it works even if the GeoLite2 databases or geo cache are unavailable.
 
+## Development
+
+```bash
+pip install -r requirements-dev.txt
+
+ruff check .            # lint
+ruff format .           # format
+python -m pytest        # Python tests (main.py)
+node --test             # CIDR calculator JS tests (static/cidr-logic.js)
+```
+
 ## Prerequisites
 
 - A server with a **public IPv4 and IPv6 address**
@@ -223,10 +234,14 @@ ipinfo/
 ├── .gitignore
 ├── main.py                 # FastAPI app
 ├── requirements.txt
+├── requirements-dev.txt    # + pytest, httpx, ruff
+├── pyproject.toml          # ruff + pytest config
+├── tests/                  # pytest (main.py) + Node test (cidr-logic.js)
 └── static/
     ├── index.html          # Landing page
     ├── getip.html          # IP lookup tool
     ├── cidr.html           # CIDR range calculator
+    ├── cidr-logic.js       # CIDR parsing/math, shared with the JS tests
     ├── impressum.html
     ├── datenschutz.html
     └── style.css
