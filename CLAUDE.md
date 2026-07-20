@@ -4,13 +4,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-Local development (no test suite or linter is configured in this repo):
+Local development:
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-dev.txt
 uvicorn main:app --reload --port 8000   # serves static/ + API on http://localhost:8000
 curl http://localhost:8000/health
 ```
+
+Lint / test:
+
+```bash
+ruff check .        # lint (config in pyproject.toml)
+ruff format .       # format
+python -m pytest    # backend tests (tests/test_*.py), TestClient-based, no live server needed
+node --test         # tests/cidr_logic.test.js — exercises static/cidr-logic.js directly via Node's built-in test runner, no npm deps
+```
+
+`static/cidr-logic.js` is a UMD-style module: `<script src="/cidr-logic.js">` attaches `window.CidrCalc` in the browser, `require("../static/cidr-logic.js")` gets a CommonJS export in tests — same file, no build step, no bundler. If you touch the CIDR math, edit that file (not inline `<script>` in `cidr.html`) so both the page and the Node tests stay in sync.
 
 Docker (mirrors production):
 
@@ -35,7 +46,7 @@ This is a single FastAPI app (`main.py`) serving a static multi-tool site (`stat
 - Geolocation is resolved server-side from local MaxMind GeoLite2 `.mmdb` files (loaded once at startup into module-level `_city_reader`/`_asn_reader`; retried every 30s via a background task if missing, since `geoipupdate` may not have populated the volume yet on first boot) and cached in-process per-IP for 1 hour (`_geo_cache`, capped at 1000 entries, evicted oldest-first). No external geo API calls happen at request time.
 - IPs are truncated to /24 (v4) or /48 (v6) before logging (`_truncate_ip`) — never log full client IPs.
 
-**CIDR Calculator (`/cidr` + `cidr.html`)** is intentionally backend-free: all IPv4/IPv6 parsing, prefix-mask math, and address formatting (including `::` compression and embedded IPv4-mapped addresses) is done client-side in JS using `BigInt`, so it works even if GeoLite2/the geo cache is down. Don't add a server round-trip for this.
+**CIDR Calculator (`/cidr` + `cidr.html` + `cidr-logic.js`)** is intentionally backend-free: all IPv4/IPv6 parsing, prefix-mask math, and address formatting (including `::` compression and embedded IPv4-mapped addresses) is done client-side in JS using `BigInt`, so it works even if GeoLite2/the geo cache is down. Don't add a server round-trip for this.
 
 **Nginx configs are environment-specific, not interchangeable:** `nginx.conf` is for a bare-metal (non-Docker) deployment; `nginx.docker.conf` is the real one used by `docker-compose.yml` (listens on unprivileged 8080/8443, host network mode); `nginx.init.conf` is a minimal bootstrap-only config used solely to serve ACME challenges before real certs exist. When changing routing/rate-limit rules, `nginx.docker.conf` is almost always the one that matters.
 

@@ -1,15 +1,16 @@
+import asyncio
+import ipaddress
+import logging
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+from time import time
+
+import geoip2.database
+import geoip2.errors
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from datetime import datetime, timezone
-from time import time
-import asyncio
-import ipaddress
-import geoip2.database
-import geoip2.errors
-import logging
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,6 +18,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
 logger = logging.getLogger("ipinfo")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -43,6 +45,7 @@ async def log_requests(request: Request, call_next):
     )
     return response
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -50,8 +53,8 @@ app.add_middleware(
 )
 
 _geo_cache: dict[str, tuple[dict, float]] = {}
-_GEO_TTL = 3600   # seconds before a cached result expires
-_GEO_MAX = 1000   # max entries to keep in memory
+_GEO_TTL = 3600  # seconds before a cached result expires
+_GEO_MAX = 1000  # max entries to keep in memory
 
 _city_reader: geoip2.database.Reader | None = None
 _asn_reader: geoip2.database.Reader | None = None
@@ -117,7 +120,9 @@ def _geo_lookup(ip: str) -> dict:
 
 def _client_ip(request: Request) -> str:
     forwarded_for = request.headers.get("X-Forwarded-For")
-    return forwarded_for.split(",")[0].strip() if forwarded_for else (request.client.host if request.client else "unknown")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 def _truncate_ip(ip: str) -> str:
@@ -180,7 +185,7 @@ async def index(request: Request):
         is_v4 = True
 
     return {
-        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "ipv4": ip if is_v4 else None,
         "ipv6": ip if not is_v4 else None,
     }
