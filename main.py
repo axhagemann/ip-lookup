@@ -159,6 +159,11 @@ async def getip():
     return FileResponse("static/getip.html")
 
 
+@app.get("/cidr")
+async def cidr():
+    return FileResponse("static/cidr.html")
+
+
 @app.get("/")
 async def index(request: Request):
     if _is_browser(request):
