@@ -8,7 +8,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY main.py .
-COPY upcheck.py
+COPY upcheck.py .
 COPY static/ static/
 
 USER app
