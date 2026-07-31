@@ -12,6 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+import upcheck
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
@@ -52,6 +54,8 @@ app.add_middleware(
     allow_methods=["GET"],
 )
 
+app.include_router(upcheck.router)
+
 _geo_cache: dict[str, tuple[dict, float]] = {}
 _GEO_TTL = 3600  # seconds before a cached result expires
 _GEO_MAX = 1000  # max entries to keep in memory
@@ -76,119 +80,4 @@ async def _retry_readers():
     while _city_reader is None:
         await asyncio.sleep(30)
         _load_readers()
-        if _city_reader is not None:
-            logger.info("GeoLite2 databases loaded successfully")
-
-
-def _cache_get(ip: str) -> dict | None:
-    entry = _geo_cache.get(ip)
-    if entry and time() - entry[1] < _GEO_TTL:
-        return entry[0]
-    _geo_cache.pop(ip, None)
-    return None
-
-
-def _cache_set(ip: str, data: dict) -> None:
-    if len(_geo_cache) >= _GEO_MAX:
-        oldest = min(_geo_cache, key=lambda k: _geo_cache[k][1])
-        del _geo_cache[oldest]
-    _geo_cache[ip] = (data, time())
-
-
-def _geo_lookup(ip: str) -> dict:
-    if _city_reader is None:
-        return {}
-    geo = {}
-    try:
-        city = _city_reader.city(ip)
-        geo["country"] = city.country.name
-        geo["region"] = city.subdivisions.most_specific.name or None
-        geo["city"] = city.city.name
-        geo["latitude"] = city.location.latitude
-        geo["longitude"] = city.location.longitude
-        geo["timezone"] = city.location.time_zone
-    except geoip2.errors.AddressNotFoundError:
-        pass
-    if _asn_reader is not None:
-        try:
-            asn = _asn_reader.asn(ip)
-            geo["isp"] = f"AS{asn.autonomous_system_number} {asn.autonomous_system_organization}"
-        except geoip2.errors.AddressNotFoundError:
-            pass
-    return geo
-
-
-def _client_ip(request: Request) -> str:
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
-
-
-def _truncate_ip(ip: str) -> str:
-    try:
-        addr = ipaddress.ip_address(ip)
-        if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped:
-            addr = addr.ipv4_mapped
-        if isinstance(addr, ipaddress.IPv4Address):
-            return str(ipaddress.IPv4Network(f"{addr}/24", strict=False).network_address)
-        else:
-            return str(ipaddress.IPv6Network(f"{addr}/48", strict=False).network_address)
-    except ValueError:
-        return ip
-
-
-def _is_browser(request: Request) -> bool:
-    return "Mozilla" in request.headers.get("User-Agent", "")
-
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
-
-
-@app.get("/ip")
-def get_ip(request: Request):
-    ip = _client_ip(request)
-
-    geo = _cache_get(ip)
-    if geo is None:
-        geo = _geo_lookup(ip)
-        _cache_set(ip, geo)
-
-    return {"ip": ip, "geo": geo}
-
-
-@app.get("/getip")
-async def getip():
-    return FileResponse("static/getip.html")
-
-
-@app.get("/cidr")
-async def cidr():
-    return FileResponse("static/cidr.html")
-
-
-@app.get("/")
-async def index(request: Request):
-    if _is_browser(request):
-        return FileResponse("static/index.html")
-
-    ip = _client_ip(request)
-    try:
-        addr = ipaddress.ip_address(ip)
-        # Unwrap IPv4-mapped IPv6 addresses (::ffff:1.2.3.4)
-        if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped:
-            addr = addr.ipv4_mapped
-        is_v4 = isinstance(addr, ipaddress.IPv4Address)
-    except ValueError:
-        is_v4 = True
-
-    return {
-        "timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "ipv4": ip if is_v4 else None,
-        "ipv6": ip if not is_v4 else None,
-    }
-
-
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+        if _city_reader is n
