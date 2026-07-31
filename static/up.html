@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Is It Up?</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .status-badge { display: inline-block; padding: 0.2em 0.7em; border-radius: 4px; font-weight: 600; }
+    .status-up { background: #1a7f37; color: #fff; }
+    .status-degraded { background: #b58900; color: #fff; }
+    .status-down { background: #cf222e; color: #fff; }
+    .status-invalid { background: #57606a; color: #fff; }
+    #result table { margin-top: 0.75em; border-collapse: collapse; }
+    #result td { padding: 0.25em 0.75em 0.25em 0; vertical-align: top; }
+    #result td:first-child { color: #57606a; white-space: nowrap; }
+    .spinner { display: none; }
+    .checking .spinner { display: inline; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Is It Up?</h1>
+    <p>Check whether a website is reachable and how it responds.</p>
+
+    <div>
+      <input type="text" id="url" placeholder="example.com" size="40"
+             autocomplete="off" spellcheck="false">
+      <button id="check">Check</button>
+      <span class="spinner">Checking&hellip;</span>
+    </div>
+
+    <div id="result" hidden>
+      <h2><span id="badge" class="status-badge"></span></h2>
+      <table>
+        <tr><td>Detail</td><td id="detail"></td></tr>
+        <tr id="row-status"><td>HTTP status</td><td id="http-status"></td></tr>
+        <tr id="row-time"><td>Response time</td><td id="time"></td></tr>
+        <tr id="row-final"><td>Final URL</td><td id="final-url"></td></tr>
+        <tr id="row-redirects"><td>Redirects</td><td id="redirects"></td></tr>
+        <tr id="row-ips"><td>Resolved IPs</td><td id="ips"></td></tr>
+        <tr id="row-stage"><td>Failed at</td><td id="stage"></td></tr>
+      </table>
+    </div>
+
+    <p><a href="/">&larr; Back</a></p>
+  </main>
+
+  <script>
+    const input = document.getElementById("url");
+    const button = document.getElementById("check");
+    const result = document.getElementById("result");
+
+    const STATUS_LABELS = {
+      up: "UP",
+      degraded: "REACHABLE, BUT ERRORING",
+      down: "DOWN",
+      invalid: "INVALID INPUT",
+    };
+
+    const STAGE_LABELS = {
+      dns: "DNS resolution",
+      connect: "TCP connection",
+      http: "HTTP request",
+      input: "Input validation",
+    };
+
+    function setRow(rowId, cellId, value) {
+      const row = document.getElementById(rowId);
+      row.hidden = value == null;
+      if (value != null) document.getElementById(cellId).textContent = value;
+    }
+
+    async function check() {
+      const url = input.value.trim();
+      if (!url) return;
+
+      document.body.classList.add("checking");
+      button.disabled = true;
+      result.hidden = true;
+
+      try {
+        const res = await fetch("/api/up?url=" + encodeURIComponent(url));
+        if (res.status === 429) {
+          throw new Error("Rate limit reached — wait a moment and try again.");
+        }
+        const data = await res.json();
+
+        const badge = document.getElementById("badge");
+        badge.textContent = STATUS_LABELS[data.status] || data.status;
+        badge.className = "status-badge status-" + data.status;
+
+        document.getElementById("detail").textContent =
+          data.detail || (data.status === "up" ? "Site responded normally" : "");
+
+        setRow("row-status", "http-status", data.http_status ?? null);
+        setRow("row-time", "time",
+          data.response_time_ms != null ? data.response_time_ms + " ms" : null);
+        setRow("row-final", "final-url",
+          data.final_url && data.redirects && data.redirects.length ? data.final_url : null);
+        setRow("row-redirects", "redirects",
+          data.redirects && data.redirects.length ? data.redirects.join(" \u2192 ") : null);
+        setRow("row-ips", "ips",
+          data.resolved_ips && data.resolved_ips.length ? data.resolved_ips.join(", ") : null);
+        setRow("row-stage", "stage",
+          data.stage && data.stage !== "done" ? (STAGE_LABELS[data.stage] || data.stage) : null);
+
+        result.hidden = false;
+      } catch (err) {
+        const badge = document.getElementById("badge");
+        badge.textContent = "ERROR";
+        badge.className = "status-badge status-invalid";
+        document.getElementById("detail").textContent = err.message;
+        ["row-status", "row-time", "row-final", "row-redirects", "row-ips", "row-stage"]
+          .forEach((id) => (document.getElementById(id).hidden = true));
+        result.hidden = false;
+      } finally {
+        document.body.classList.remove("checking");
+        button.disabled = false;
+      }
+    }
+
+    button.addEventListener("click", check);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") check(); });
+  </script>
+</body>
+</html>
