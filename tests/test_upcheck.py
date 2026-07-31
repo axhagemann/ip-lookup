@@ -56,10 +56,16 @@ class TestClassify:
     def test_3xx_is_up(self):
         assert upcheck._classify(301) == "up"
 
-    def test_4xx_is_degraded(self):
-        assert upcheck._classify(403) == "degraded"
-        assert upcheck._classify(404) == "degraded"
-
     def test_5xx_is_down(self):
         assert upcheck._classify(500) == "down"
         assert upcheck._classify(503) == "down"
+
+    def test_refused_codes_are_up(self):
+        # Server answered — it's alive, just declined this client
+        assert upcheck._classify(401) == "up"
+        assert upcheck._classify(403) == "up"
+        assert upcheck._classify(429) == "up"
+
+    def test_other_4xx_is_degraded(self):
+        assert upcheck._classify(404) == "degraded"
+        assert upcheck._classify(410) == "degraded"

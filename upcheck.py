@@ -23,7 +23,27 @@ router = APIRouter()
 
 _TIMEOUT = 10.0  # seconds per network operation
 _MAX_REDIRECTS = 5
-_UA = "ipinfo-upcheck/1.0 (+https://github.com/axhagemann/ip-lookup)"
+
+# Browser-like headers. Many enterprise WAFs reject requests with a bot-shaped
+# User-Agent or missing Accept headers before they ever reach the origin.
+# This is not evasion — sites that fingerprint TLS will still refuse us, and
+# _classify() treats that refusal as "up" because it proves a server answered.
+_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+
+# Codes meaning "a server answered and is healthy, it just refused this client".
+# The site is up; only our specific request was rejected.
+_REFUSED_CODES = {401, 403, 429}
+
+# Codes where a HEAD request is worth retrying as GET: some servers reject HEAD
+# outright (405/501), and some WAFs block HEAD as a scanner signature (403).
+_RETRY_AS_GET = {403, 405, 501}
 
 
 def _normalize_url(raw: str) -> str | None:
@@ -61,23 +81,40 @@ def _guard_ssrf(host: str) -> tuple[list[str], str | None]:
 def _classify(status_code: int) -> str:
     if status_code < 400:
         return "up"
+    if status_code in _REFUSED_CODES:
+        # The server responded quickly and correctly — it is reachable and
+        # healthy. It simply declined to serve this particular client.
+        return "up"
     if status_code < 500:
-        return "degraded"  # reachable but erroring (403 may just be bot-blocking)
+        return "degraded"
     return "down"
 
 
+def _describe(status_code: int) -> str:
+    if status_code in _REFUSED_CODES:
+        return (
+            f"Site is up, but refused this check ({status_code}) — most likely "
+            "bot protection. A human browser will probably reach it fine."
+        )
+    if status_code < 400:
+        return "Site responded normally"
+    if status_code < 500:
+        return f"Server responded with a client error ({status_code})"
+    return f"Server responded with an error ({status_code})"
+
+
 async def _http_check(url: str) -> dict:
-    """HEAD first (cheap), fall back to GET since some servers reject HEAD."""
+    """HEAD first (cheap), fall back to GET when HEAD is rejected or blocked."""
     async with httpx.AsyncClient(
         timeout=_TIMEOUT,
         follow_redirects=True,
         max_redirects=_MAX_REDIRECTS,
-        headers={"User-Agent": _UA},
+        headers=_HEADERS,
     ) as client:
         start = time.monotonic()
         try:
             response = await client.head(url)
-            if response.status_code in (405, 501):
+            if response.status_code in _RETRY_AS_GET:
                 response = await client.get(url)
         except httpx.HTTPError:
             response = await client.get(url)
@@ -86,6 +123,7 @@ async def _http_check(url: str) -> dict:
     redirects = [str(r.url) for r in response.history]
     return {
         "status": _classify(response.status_code),
+        "detail": _describe(response.status_code),
         "http_status": response.status_code,
         "response_time_ms": elapsed_ms,
         "final_url": str(response.url),
