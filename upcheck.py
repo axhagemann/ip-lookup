@@ -19,10 +19,13 @@ import httpx
 from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
 
+import geo
+
 router = APIRouter()
 
 _TIMEOUT = 10.0  # seconds per network operation
 _MAX_REDIRECTS = 5
+_GEO_MAX_IPS = 4  # bound the work when DNS round-robins many A records
 
 # Browser-like headers. Many enterprise WAFs reject requests with a bot-shaped
 # User-Agent or missing Accept headers before they ever reach the origin.
@@ -76,6 +79,21 @@ def _guard_ssrf(host: str) -> tuple[list[str], str | None]:
         if not addr.is_global:
             return ips, "blocked"
     return ips, None
+
+
+def _geo_for(ips: list[str]) -> list[dict]:
+    """Geolocate the resolved target IPs, in the same order as `ips`.
+
+    mmdb reads are memory-mapped and take microseconds, so this stays inline
+    rather than going through an executor. IPs with no known location are
+    omitted entirely; the list is empty when GeoLite2 has not loaded.
+    """
+    located = []
+    for ip in ips[:_GEO_MAX_IPS]:
+        data = geo.lookup(ip)
+        if data:
+            located.append({"ip": ip, **data})
+    return located
 
 
 def _classify(status_code: int) -> str:
@@ -146,21 +164,30 @@ async def check_up(url: str = Query(..., max_length=2048)):
     if guard_error == "blocked":
         return {"status": "invalid", "stage": "input", "detail": "Target resolves to a non-public address"}
 
+    # Attached to every outcome below: a site that is down is exactly when
+    # "whose address is this?" is most worth answering.
+    target = {"resolved_ips": ips, "ip_geo": _geo_for(ips)}
+
     try:
         result = await _http_check(normalized)
     except httpx.ConnectError:
-        return {"status": "down", "stage": "connect", "detail": "Server unreachable", "resolved_ips": ips}
+        return {"status": "down", "stage": "connect", "detail": "Server unreachable", **target}
     except httpx.ConnectTimeout:
-        return {"status": "down", "stage": "connect", "detail": "Connection timed out", "resolved_ips": ips}
+        return {"status": "down", "stage": "connect", "detail": "Connection timed out", **target}
     except httpx.ReadTimeout:
-        return {"status": "down", "stage": "http", "detail": "Server accepted the connection but did not respond in time", "resolved_ips": ips}
+        return {
+            "status": "down",
+            "stage": "http",
+            "detail": "Server accepted the connection but did not respond in time",
+            **target,
+        }
     except httpx.TooManyRedirects:
-        return {"status": "degraded", "stage": "http", "detail": f"More than {_MAX_REDIRECTS} redirects", "resolved_ips": ips}
+        return {"status": "degraded", "stage": "http", "detail": f"More than {_MAX_REDIRECTS} redirects", **target}
     except httpx.HTTPError as exc:
-        return {"status": "down", "stage": "http", "detail": type(exc).__name__, "resolved_ips": ips}
+        return {"status": "down", "stage": "http", "detail": type(exc).__name__, **target}
 
     result["stage"] = "done"
-    result["resolved_ips"] = ips
+    result.update(target)
     return result
 
 

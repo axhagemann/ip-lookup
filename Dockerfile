@@ -8,6 +8,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY main.py .
+COPY geo.py .
 COPY upcheck.py .
 COPY static/ static/
 

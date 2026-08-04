@@ -32,6 +32,29 @@ def test_index_serves_json_for_script(client):
     assert body["ipv4"] or body["ipv6"]
 
 
+def test_up_serves_html(client):
+    res = client.get("/up")
+    assert res.status_code == 200
+    assert "text/html" in res.headers["content-type"]
+
+
+def test_up_invalid_url_has_no_geo(client):
+    """Nothing was resolved, so there is nothing to geolocate."""
+    res = client.get("/api/up", params={"url": "ftp://example.com"})
+    body = res.json()
+    assert body["status"] == "invalid"
+    assert "ip_geo" not in body
+    assert "resolved_ips" not in body
+
+
+def test_up_dns_failure_has_no_geo(client):
+    res = client.get("/api/up", params={"url": "this-domain-definitely-does-not-exist.invalid"})
+    body = res.json()
+    assert body["status"] == "down"
+    assert body["stage"] == "dns"
+    assert "ip_geo" not in body
+
+
 def test_ip_endpoint_returns_ip_and_geo(client):
     res = client.get("/ip", headers={"X-Forwarded-For": "203.0.113.42"})
     assert res.status_code == 200

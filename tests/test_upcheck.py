@@ -1,5 +1,6 @@
 """Tests for upcheck.py — URL normalization, SSRF guard, and response classification."""
 
+import geo
 import upcheck
 
 
@@ -69,3 +70,33 @@ class TestClassify:
     def test_other_4xx_is_degraded(self):
         assert upcheck._classify(404) == "degraded"
         assert upcheck._classify(410) == "degraded"
+
+
+class TestGeoFor:
+    def test_empty_when_no_databases(self, monkeypatch):
+        monkeypatch.setattr(geo, "_city_reader", None)
+        monkeypatch.setattr(geo, "_asn_reader", None)
+        assert upcheck._geo_for(["93.184.216.34"]) == []
+
+    def test_entries_carry_their_ip(self, monkeypatch):
+        monkeypatch.setattr(geo, "_geo_lookup", lambda ip: {"country": "Testland"})
+        assert upcheck._geo_for(["203.0.113.1"]) == [{"ip": "203.0.113.1", "country": "Testland"}]
+
+    def test_preserves_input_order(self, monkeypatch):
+        monkeypatch.setattr(geo, "_geo_lookup", lambda ip: {"country": "Testland"})
+        ips = ["203.0.113.3", "203.0.113.1", "203.0.113.2"]
+        assert [entry["ip"] for entry in upcheck._geo_for(ips)] == ips
+
+    def test_caps_number_of_lookups(self, monkeypatch):
+        monkeypatch.setattr(geo, "_geo_lookup", lambda ip: {"country": "Testland"})
+        ips = [f"203.0.113.{n}" for n in range(1, 11)]
+        assert len(upcheck._geo_for(ips)) == upcheck._GEO_MAX_IPS
+
+    def test_skips_ips_with_no_known_location(self, monkeypatch):
+        monkeypatch.setattr(
+            geo,
+            "_geo_lookup",
+            lambda ip: {"country": "Testland"} if ip == "203.0.113.1" else {},
+        )
+        located = upcheck._geo_for(["203.0.113.1", "203.0.113.2"])
+        assert [entry["ip"] for entry in located] == ["203.0.113.1"]

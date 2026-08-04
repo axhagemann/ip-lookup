@@ -108,6 +108,22 @@
       word-break: break-all;
     }
 
+    .ip-line + .ip-line { margin-top: 0.5rem; }
+
+    .ip-geo {
+      display: block;
+      font-size: 0.75rem;
+      color: #999;
+    }
+
+    .geo-disclaimer {
+      font-size: 0.75rem;
+      color: #c0c0c0;
+      max-width: 480px;
+      margin: 0 auto;
+      line-height: 1.9;
+    }
+
     .back { margin: 0; }
 
     footer {
@@ -150,12 +166,17 @@
         <button id="check">Check</button>
       </div>
 
-      <div class="result" id="result" hidden>
+      <div class="result" id="result" aria-live="polite" hidden>
         <h2 id="badge"></h2>
         <p class="status-note" id="detail"></p>
         <dl id="fields"></dl>
       </div>
     </div>
+
+    <p class="geo-disclaimer">
+      Geolocation is approximate — IP-based lookups can be off by city or region,
+      and large sites answer from whichever edge node is nearest to this server.
+    </p>
 
     <a class="back" href="/">&larr; Back</a>
   </main>
@@ -199,6 +220,41 @@
       fields.append(dt, dd);
     }
 
+    function addFieldNode(label, node) {
+      if (!node) return;
+      const dt = document.createElement("dt");
+      dt.textContent = label;
+      const dd = document.createElement("dd");
+      dd.append(node);
+      fields.append(dt, dd);
+    }
+
+    // One block per resolved IP: the address, and under it whatever geo we have.
+    function renderIps(ips, geoList) {
+      if (!ips || !ips.length) return null;
+
+      const byIp = new Map((geoList || []).map((entry) => [entry.ip, entry]));
+      const frag = document.createDocumentFragment();
+
+      for (const ip of ips) {
+        const geo = byIp.get(ip) || {};
+        const line = document.createElement("div");
+        line.className = "ip-line";
+        line.textContent = ip;
+
+        const place = [geo.city, geo.region, geo.country].filter(Boolean).join(", ");
+        const meta = [place, geo.isp].filter(Boolean).join(" · ");
+        if (meta) {
+          const span = document.createElement("span");
+          span.className = "ip-geo";
+          span.textContent = meta;
+          line.append(span);
+        }
+        frag.append(line);
+      }
+      return frag;
+    }
+
     function show(status, message) {
       badge.textContent = STATUS_LABELS[status] || status;
       badge.className = "status-" + status;
@@ -230,8 +286,7 @@
           addField("Final URL", data.final_url);
           addField("Redirects", data.redirects.join(" \u2192 "));
         }
-        addField("Resolved IPs", data.resolved_ips && data.resolved_ips.length
-          ? data.resolved_ips.join(", ") : null);
+        addFieldNode("Resolved IPs", renderIps(data.resolved_ips, data.ip_geo));
         addField("Failed at", data.stage && data.stage !== "done"
           ? (STAGE_LABELS[data.stage] || data.stage) : null);
       } catch (err) {
