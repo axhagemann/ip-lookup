@@ -11,6 +11,24 @@
     .container section p + p { margin-top: 0.75rem; }
     .container section p + ul { margin-top: 0.4rem; }
     .container section ul + p { margin-top: 0.75rem; }
+
+    #optout-toggle {
+      background: none;
+      border: 1px solid #666;
+      color: #c0c0c0;
+      padding: 0.6rem 1rem;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-family: "Courier New", Courier, monospace;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      transition: border-color 0.1s, color 0.1s;
+    }
+    #optout-toggle:hover { border-color: #888; color: #e0e0e0; }
+    @media (prefers-reduced-motion: reduce) {
+      #optout-toggle { transition: none; }
+    }
+    #optout-state:empty { display: none; }
   </style>
 </head>
 <body>
@@ -78,10 +96,70 @@
         </section>
 
         <section aria-labelledby="sec-5">
-          <h2 id="sec-5"><span aria-hidden="true">// </span>5. No Cookies, No Tracking</h2>
+          <h2 id="sec-5"><span aria-hidden="true">// </span>5. Audience Measurement</h2>
           <p>
-            This service does not set any cookies and does not use any analysis or tracking services.
+            This website uses GoatCounter to measure how often its pages are visited.
+            It is self-hosted and runs on the same server as this website. Both the
+            counting script and the counting endpoint are served from this domain; no
+            resources are loaded from third parties and no data is passed on to them.
           </p>
+          <p>The following data is processed:</p>
+          <ul role="list">
+            <li>Requested page (path) and page title</li>
+            <li>Referring page, if sent by the browser</li>
+            <li>Country of origin, derived from the IP address</li>
+            <li>Browser and operating system type, and screen width</li>
+            <li>A randomly generated session identifier, so that repeat views within one
+                session are not counted more than once</li>
+          </ul>
+          <p>
+            Your IP address and your browser identifier (User-Agent) are not stored in the
+            statistics. They are used solely to determine the country of origin and to
+            associate your views with a randomly generated identifier for the duration of
+            a session; only that identifier is stored. This association is held in the
+            server's memory and is deleted at the latest eight hours after your last view;
+            when the service restarts it is briefly written to the server and then carried
+            forward. No recognition beyond this website takes place.
+          </p>
+          <p>
+            No cookies are set. No information is stored on or read from your device —
+            with the single exception of an opt-out marker you set yourself (see below),
+            which is read only in order to honour your objection. Consent under
+            <span class="legal-ref">Sec. 25 (1) TDDDG</span> is therefore not required.
+          </p>
+          <p>
+            The legal basis is <span class="legal-ref">Art. 6 (1) (f) GDPR</span>. The
+            legitimate interest lies in statistically evaluating usage in order to
+            improve the content and operation of the website. This processing serves a
+            purpose of its own and is separate from the processing described in
+            Section 2, which provides the service itself.
+          </p>
+          <p>
+            Aggregated statistics are deleted after 12 months.
+          </p>
+          <p>
+            If your browser sends the "Do Not Track" (DNT) or "Global Privacy Control"
+            (GPC) signal, we treat it as an objection under
+            <span class="legal-ref">Art. 21 GDPR</span>: such requests are discarded on
+            the server and not counted. This requires nothing further from you and also
+            works without JavaScript.
+          </p>
+          <p>
+            Independently of that, you may object to audience measurement here at any
+            time. The setting is stored locally in this browser and applies until you
+            undo it here or clear your browser data.
+          </p>
+          <p id="optout-wrap" hidden>
+            <button type="button" id="optout-toggle"></button>
+          </p>
+          <p id="optout-state" role="status"></p>
+          <noscript>
+            <p>
+              Objecting via this button requires JavaScript. Without JavaScript, the DNT
+              or GPC signal described above still applies; alternatively you can block
+              requests to <code>/count</code> in your browser.
+            </p>
+          </noscript>
         </section>
 
         <section aria-labelledby="sec-6">
@@ -107,7 +185,8 @@
           <h2 id="sec-7"><span aria-hidden="true">// </span>7. Your Rights</h2>
           <p>
             You have the following rights against the controller regarding the short-term processing of
-            your full IP address when accessing this page:
+            your full IP address when accessing this page, and regarding the audience measurement
+            described in Section 5:
           </p>
           <ul role="list">
             <li>Right of access (Art. 15 GDPR)</li>
@@ -139,5 +218,52 @@
       </div>
     </main>
   </div>
+
+  <!-- Self-hosted GoatCounter: first-party endpoints only, cookieless, no third party. -->
+  <script data-goatcounter="/count" async src="/count.js"></script>
+  <noscript><img src="/count?p=/privacy.html" alt="" aria-hidden="true" width="1" height="1" style="position:absolute"></noscript>
+  <script>
+    // Opt-out control for section 5. count.js checks localStorage "skipgc" in
+    // its filter() before sending anything, so writing that key is the whole
+    // mechanism — no reload, and no dependency on count.js having loaded.
+    // Deliberately not count.js's own #toggle-goatcounter link: that one acts
+    // on page load, so a stale hash in the URL flips the setting on every
+    // refresh.
+    (function () {
+      var wrap  = document.getElementById("optout-wrap"),
+          btn   = document.getElementById("optout-toggle"),
+          state = document.getElementById("optout-state");
+
+      // Reading localStorage throws when the browser blocks site storage.
+      function disabled() {
+        try { return localStorage.getItem("skipgc") === "t"; }
+        catch (e) { return null; }
+      }
+
+      if (disabled() === null) return;  // Control can't work; leave it hidden.
+
+      function render(announce) {
+        var off = disabled();
+        btn.textContent = off ? "Enable audience measurement"
+                              : "Disable audience measurement";
+        // Only on user action, so the status is not read out on page load.
+        if (announce)
+          state.textContent = off
+            ? "Audience measurement is disabled in this browser."
+            : "Audience measurement is active in this browser.";
+      }
+
+      btn.addEventListener("click", function () {
+        try {
+          if (disabled()) localStorage.removeItem("skipgc");
+          else localStorage.setItem("skipgc", "t");
+        } catch (e) { /* Storage vanished mid-session; render() re-reads. */ }
+        render(true);
+      });
+
+      render(false);
+      wrap.hidden = false;
+    })();
+  </script>
 </body>
 </html>

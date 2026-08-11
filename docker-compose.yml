@@ -37,6 +37,26 @@ services:
       app:
         condition: service_healthy
 
+  goatcounter:
+    image: arp242/goatcounter:2.7.0
+    restart: unless-stopped
+    # Localhost only — nginx (host network) reaches it at 127.0.0.1:8081.
+    # Never expose this port publicly; TLS and rate limiting live in nginx.
+    ports:
+      - "127.0.0.1:8081:8081"
+    networks:
+      - internal
+    # -automigrate runs pending schema migrations on startup, so bumping the
+    # image tag is all an upgrade needs.
+    command: ["serve", "-automigrate", "-listen=:8081"]
+    volumes:
+      - goatcounter_data:/home/goatcounter/goatcounter-data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "7"
+
   certbot:
     image: certbot/certbot
     volumes:
@@ -63,3 +83,4 @@ networks:
 
 volumes:
   geoip_data:
+  goatcounter_data:   # SQLite analytics DB — include in backups

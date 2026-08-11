@@ -11,6 +11,24 @@
     .container section p + p { margin-top: 0.75rem; }
     .container section p + ul { margin-top: 0.4rem; }
     .container section ul + p { margin-top: 0.75rem; }
+
+    #optout-toggle {
+      background: none;
+      border: 1px solid #666;
+      color: #c0c0c0;
+      padding: 0.6rem 1rem;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-family: "Courier New", Courier, monospace;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      transition: border-color 0.1s, color 0.1s;
+    }
+    #optout-toggle:hover { border-color: #888; color: #e0e0e0; }
+    @media (prefers-reduced-motion: reduce) {
+      #optout-toggle { transition: none; }
+    }
+    #optout-state:empty { display: none; }
   </style>
 </head>
 <body>
@@ -82,11 +100,77 @@
         </section>
 
         <section aria-labelledby="sec-5">
-          <h2 id="sec-5"><span aria-hidden="true">// </span>5. Keine Cookies, kein Tracking</h2>
+          <h2 id="sec-5"><span aria-hidden="true">// </span>5. Reichweitenmessung</h2>
           <p>
-            Dieser Dienst setzt keine Cookies und verwendet keine Analyse- oder
-            Tracking-Dienste.
+            Zur Messung der Reichweite dieser Website wird die Analyse-Software
+            GoatCounter eingesetzt. Sie wird selbst betrieben und läuft auf demselben
+            Server wie diese Website. Sowohl das Zählskript als auch der Zählpunkt
+            werden von dieser Domain ausgeliefert; es werden keine Ressourcen von
+            Dritten geladen und keine Daten an Dritte übermittelt.
           </p>
+          <p>Dabei werden folgende Daten verarbeitet:</p>
+          <ul role="list">
+            <li>Aufgerufene Seite (Pfad) und Seitentitel</li>
+            <li>Verweisende Seite (Referrer), sofern vom Browser übermittelt</li>
+            <li>Herkunftsland, abgeleitet aus der IP-Adresse</li>
+            <li>Browser- und Betriebssystemtyp sowie Bildschirmbreite</li>
+            <li>Eine zufällig erzeugte Sitzungskennung, damit wiederholte Aufrufe
+                innerhalb einer Sitzung nicht mehrfach gezählt werden</li>
+          </ul>
+          <p>
+            Ihre IP-Adresse und die Kennung Ihres Browsers (User-Agent) werden nicht in
+            den Statistikdaten gespeichert. Sie werden ausschließlich dazu verwendet, das
+            Herkunftsland zu bestimmen und Ihre Aufrufe für die Dauer einer Sitzung einer
+            zufällig erzeugten Kennung zuzuordnen; gespeichert wird allein diese Kennung.
+            Die Zuordnung liegt im Arbeitsspeicher des Servers und wird spätestens acht
+            Stunden nach Ihrem letzten Aufruf gelöscht; bei einem Neustart des Dienstes
+            wird sie kurzzeitig auf dem Server zwischengespeichert und anschließend
+            weitergeführt. Eine Wiedererkennung über diese Website hinaus findet nicht
+            statt.
+          </p>
+          <p>
+            Es werden keine Cookies gesetzt. Informationen auf Ihrem Endgerät werden
+            weder gespeichert noch ausgelesen — mit der einzigen Ausnahme eines von
+            Ihnen selbst gesetzten Widerspruchs-Kennzeichens (siehe unten), dessen
+            Abfrage nach <span class="legal-ref">§ 25 Abs. 2 Nr. 2 TDDDG</span> unbedingt
+            erforderlich ist, um Ihren Widerspruch zu berücksichtigen. Eine Einwilligung
+            nach <span class="legal-ref">§ 25 Abs. 1 TDDDG</span> ist daher nicht
+            erforderlich.
+          </p>
+          <p>
+            Rechtsgrundlage ist <span class="legal-ref">Art. 6 Abs. 1 lit. f DSGVO</span>.
+            Das berechtigte Interesse liegt in der statistischen Auswertung der Nutzung,
+            um Inhalte und Betrieb der Website zu verbessern. Diese Verarbeitung verfolgt
+            einen eigenständigen Zweck und ist von der unter Punkt 2 beschriebenen
+            Verarbeitung zur Bereitstellung des Dienstes zu unterscheiden.
+          </p>
+          <p>
+            Die aggregierten Statistikdaten werden nach 12 Monaten gelöscht.
+          </p>
+          <p>
+            Sendet Ihr Browser das Signal „Do Not Track“ (DNT) oder „Global Privacy
+            Control“ (GPC), werten wir das als Widerspruch nach
+            <span class="legal-ref">Art. 21 DSGVO</span>: Solche Anfragen werden bereits
+            auf dem Server verworfen und nicht gezählt. Dafür ist kein weiteres Zutun
+            nötig, und es wirkt auch ohne aktiviertes JavaScript.
+          </p>
+          <p>
+            Unabhängig davon können Sie der Reichweitenmessung hier jederzeit
+            widersprechen. Die Einstellung wird lokal in diesem Browser gespeichert und
+            gilt, bis Sie sie hier wieder aufheben oder die Browserdaten löschen.
+          </p>
+          <p id="optout-wrap" hidden>
+            <button type="button" id="optout-toggle"></button>
+          </p>
+          <p id="optout-state" role="status"></p>
+          <noscript>
+            <p>
+              Der Widerspruch über diese Schaltfläche benötigt JavaScript. Ohne
+              JavaScript wirkt weiterhin das oben genannte DNT- bzw. GPC-Signal Ihres
+              Browsers; alternativ können Sie Anfragen an <code>/count</code> in Ihrem
+              Browser blockieren.
+            </p>
+          </noscript>
         </section>
 
         <section aria-labelledby="sec-6">
@@ -115,7 +199,8 @@
           <h2 id="sec-7"><span aria-hidden="true">// </span>7. Ihre Rechte</h2>
           <p>
             Sie haben gegenüber dem Verantwortlichen folgende Rechte bezüglich der
-            kurzzeitigen Verarbeitung Ihrer vollständigen IP-Adresse beim Aufruf der Seite:
+            kurzzeitigen Verarbeitung Ihrer vollständigen IP-Adresse beim Aufruf der Seite
+            sowie bezüglich der unter Punkt 5 beschriebenen Reichweitenmessung:
           </p>
           <ul role="list">
             <li>Auskunft über gespeicherte Daten (Art. 15 DSGVO)</li>
@@ -148,5 +233,52 @@
       </div>
     </main>
   </div>
+
+  <!-- Self-hosted GoatCounter: first-party endpoints only, cookieless, no third party. -->
+  <script data-goatcounter="/count" async src="/count.js"></script>
+  <noscript><img src="/count?p=/datenschutz.html" alt="" aria-hidden="true" width="1" height="1" style="position:absolute"></noscript>
+  <script>
+    // Opt-out control for section 5. count.js checks localStorage "skipgc" in
+    // its filter() before sending anything, so writing that key is the whole
+    // mechanism — no reload, and no dependency on count.js having loaded.
+    // Deliberately not count.js's own #toggle-goatcounter link: that one acts
+    // on page load, so a stale hash in the URL flips the setting on every
+    // refresh.
+    (function () {
+      var wrap  = document.getElementById("optout-wrap"),
+          btn   = document.getElementById("optout-toggle"),
+          state = document.getElementById("optout-state");
+
+      // Reading localStorage throws when the browser blocks site storage.
+      function disabled() {
+        try { return localStorage.getItem("skipgc") === "t"; }
+        catch (e) { return null; }
+      }
+
+      if (disabled() === null) return;  // Control can't work; leave it hidden.
+
+      function render(announce) {
+        var off = disabled();
+        btn.textContent = off ? "Reichweitenmessung aktivieren"
+                              : "Reichweitenmessung deaktivieren";
+        // Only on user action, so the status is not read out on page load.
+        if (announce)
+          state.textContent = off
+            ? "Die Reichweitenmessung ist in diesem Browser deaktiviert."
+            : "Die Reichweitenmessung ist in diesem Browser aktiv.";
+      }
+
+      btn.addEventListener("click", function () {
+        try {
+          if (disabled()) localStorage.removeItem("skipgc");
+          else localStorage.setItem("skipgc", "t");
+        } catch (e) { /* Storage vanished mid-session; render() re-reads. */ }
+        render(true);
+      });
+
+      render(false);
+      wrap.hidden = false;
+    })();
+  </script>
 </body>
 </html>
