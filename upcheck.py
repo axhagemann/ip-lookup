@@ -11,6 +11,7 @@ request; acceptable for a personal tool behind nginx rate limiting.
 
 import asyncio
 import ipaddress
+import re
 import socket
 import time
 from urllib.parse import urlsplit
@@ -27,14 +28,18 @@ _TIMEOUT = 10.0  # seconds per network operation
 _MAX_REDIRECTS = 5
 _GEO_MAX_IPS = 4  # bound the work when DNS round-robins many A records
 
+_MAX_URL_LENGTH = 2048
+_ALLOWED_PORTS = frozenset({80, 443, 8080, 8443})
+_WHITESPACE_OR_CONTROL = re.compile(r"[\x00-\x20\x7f]")
+_DNS_LABEL = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?")
+
 # Browser-like headers. Many enterprise WAFs reject requests with a bot-shaped
 # User-Agent or missing Accept headers before they ever reach the origin.
 # This is not evasion — sites that fingerprint TLS will still refuse us, and
 # _classify() treats that refusal as "up" because it proves a server answered.
 _HEADERS = {
     "User-Agent": (
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
     ),
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
@@ -60,6 +65,57 @@ def _normalize_url(raw: str) -> str | None:
     if parts.scheme not in ("http", "https") or not parts.hostname:
         return None
     return raw
+
+
+class Rejected(Exception):
+    """A URL that will not be fetched; str(exc) is shown to the visitor."""
+
+
+def _is_ip(host: str) -> bool:
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return True
+
+
+def _is_acceptable_host(host: str) -> bool:
+    if _is_ip(host):
+        return True
+    name = host.lower().removesuffix(".")
+    labels = name.split(".")
+    return (
+        len(name) <= 253
+        and len(labels) >= 2
+        and all(_DNS_LABEL.fullmatch(label) for label in labels)
+        and not labels[-1].isdigit()
+    )
+
+
+def _parse_target(raw: str) -> httpx.URL:
+    raw = raw.strip()
+    if not raw:
+        raise Rejected("Enter a URL to check")
+    if len(raw) > _MAX_URL_LENGTH:
+        raise Rejected("URL is too long")
+    # Before parsing: urlsplit and httpx disagree on embedded tabs and spaces.
+    if _WHITESPACE_OR_CONTROL.search(raw):
+        raise Rejected("URL contains spaces or control characters")
+    if "://" not in raw:
+        raw = "https://" + raw
+    try:
+        url = httpx.URL(raw)
+    except httpx.InvalidURL:
+        raise Rejected("Not a valid URL") from None
+    if url.scheme not in ("http", "https"):
+        raise Rejected("Only http and https URLs can be checked")
+    if url.userinfo:
+        raise Rejected("URLs with a username or password aren't accepted")
+    if not _is_acceptable_host(url.raw_host.decode("ascii")):
+        raise Rejected("Not a public hostname or IP address")
+    if url.port is not None and url.port not in _ALLOWED_PORTS:
+        raise Rejected(f"Port {url.port} isn't allowed — only 80, 443, 8080 and 8443")
+    return url.copy_with(fragment=None)
 
 
 def _guard_ssrf(host: str) -> tuple[list[str], str | None]:

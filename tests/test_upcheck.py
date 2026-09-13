@@ -1,5 +1,7 @@
 """Tests for upcheck.py — URL normalization, SSRF guard, and response classification."""
 
+import pytest
+
 import geo
 import upcheck
 
@@ -100,3 +102,57 @@ class TestGeoFor:
         )
         located = upcheck._geo_for(["203.0.113.1", "203.0.113.2"])
         assert [entry["ip"] for entry in located] == ["203.0.113.1"]
+
+
+class TestParseTarget:
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            ("spiegel.de", "https://spiegel.de"),
+            ("  spiegel.de  ", "https://spiegel.de"),
+            ("http://spiegel.de", "http://spiegel.de"),
+            ("HTTPS://WWW.Spiegel.DE/", "https://www.spiegel.de/"),
+            ("https://www.spiegel.de/politik/?x=1#top", "https://www.spiegel.de/politik/?x=1"),
+            ("https://spiegel.de:443/", "https://spiegel.de/"),
+            ("spiegel.de:8080", "https://spiegel.de:8080"),
+            ("spiegel.de.", "https://spiegel.de."),
+            ("bücher.de", "https://xn--bcher-kva.de"),
+            ("[2001:db8::1]:8443", "https://[2001:db8::1]:8443"),
+            ("1.1.1.1", "https://1.1.1.1"),
+        ],
+    )
+    def test_accepts_and_normalizes(self, raw, expected):
+        assert str(upcheck._parse_target(raw)) == expected
+
+    @pytest.mark.parametrize(
+        ("raw", "message"),
+        [
+            ("", "Enter a URL to check"),
+            ("   ", "Enter a URL to check"),
+            ("https://spiegel.de/" + "a" * 3000, "URL is too long"),
+            ("spie gel.de", "URL contains spaces or control characters"),
+            ("spiegel.de\t/politik", "URL contains spaces or control characters"),
+            ("https://[zz]/", "Not a valid URL"),
+            ("javascript:alert(1)", "Not a valid URL"),
+            ("https://☃.de", "Not a valid URL"),
+            ("ftp://spiegel.de", "Only http and https URLs can be checked"),
+            ("file:///etc/passwd", "Only http and https URLs can be checked"),
+            ("https://user:pass@spiegel.de", "URLs with a username or password aren't accepted"),
+            ("mailto:x@spiegel.de", "URLs with a username or password aren't accepted"),
+            ("https://", "Not a public hostname or IP address"),
+            ("localhost", "Not a public hostname or IP address"),
+            ("localhost:8081", "Not a public hostname or IP address"),
+            ("intranet", "Not a public hostname or IP address"),
+            ("2130706433", "Not a public hostname or IP address"),
+            ("0x7f.1", "Not a public hostname or IP address"),
+            ("127.1", "Not a public hostname or IP address"),
+            ("exa_mple.de", "Not a public hostname or IP address"),
+            ("spiegel.de:22", "Port 22 isn't allowed — only 80, 443, 8080 and 8443"),
+            ("spiegel.de:0", "Port 0 isn't allowed — only 80, 443, 8080 and 8443"),
+            ("spiegel.de:99999", "Port 99999 isn't allowed — only 80, 443, 8080 and 8443"),
+        ],
+    )
+    def test_rejects_with_reason(self, raw, message):
+        with pytest.raises(upcheck.Rejected) as exc_info:
+            upcheck._parse_target(raw)
+        assert str(exc_info.value) == message
