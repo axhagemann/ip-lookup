@@ -33,6 +33,9 @@ _ALLOWED_PORTS = frozenset({80, 443, 8080, 8443})
 _WHITESPACE_OR_CONTROL = re.compile(r"[\x00-\x20\x7f]")
 _DNS_LABEL = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?")
 
+_DNS_TIMEOUT = 5.0  # seconds
+_NAT64 = ipaddress.IPv6Network("64:ff9b::/96")
+
 # Browser-like headers. Many enterprise WAFs reject requests with a bot-shaped
 # User-Agent or missing Accept headers before they ever reach the origin.
 # This is not evasion — sites that fingerprint TLS will still refuse us, and
@@ -116,6 +119,48 @@ def _parse_target(raw: str) -> httpx.URL:
     if url.port is not None and url.port not in _ALLOWED_PORTS:
         raise Rejected(f"Port {url.port} isn't allowed — only 80, 443, 8080 and 8443")
     return url.copy_with(fragment=None)
+
+
+class NotPublic(Exception):
+    """The host resolves to at least one address that is not publicly routable."""
+
+
+class Unresolvable(Exception):
+    """The host has no addresses, or DNS did not answer in time."""
+
+
+def _is_public(addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    if not addr.is_global:
+        return False
+    if isinstance(addr, ipaddress.IPv6Address):
+        embedded = addr.ipv4_mapped or addr.sixtofour
+        if embedded is None and addr in _NAT64:
+            embedded = ipaddress.IPv4Address(int(addr) & 0xFFFFFFFF)
+        if embedded is not None and not embedded.is_global:
+            return False
+    return True
+
+
+def _lookup(host: str) -> list[str]:
+    return [info[4][0] for info in socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)]
+
+
+async def _resolve_public(url: httpx.URL) -> list[str]:
+    host = url.raw_host.decode("ascii")
+    if _is_ip(host):
+        found = [host]
+    else:
+        loop = asyncio.get_running_loop()
+        try:
+            found = await asyncio.wait_for(loop.run_in_executor(None, _lookup, host), _DNS_TIMEOUT)
+        except (socket.gaierror, TimeoutError):
+            raise Unresolvable from None
+    ips = list(dict.fromkeys(found))
+    if not ips:
+        raise Unresolvable
+    if not all(_is_public(ipaddress.ip_address(ip)) for ip in ips):
+        raise NotPublic
+    return sorted(ips, key=lambda ip: ":" in ip)
 
 
 def _guard_ssrf(host: str) -> tuple[list[str], str | None]:

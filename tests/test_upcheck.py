@@ -1,9 +1,33 @@
 """Tests for upcheck.py — URL normalization, SSRF guard, and response classification."""
 
+import asyncio
+import socket
+import time
+
+import httpx
 import pytest
 
 import geo
 import upcheck
+
+
+def _fake_dns(monkeypatch, answers):
+    """Replace DNS. answers maps host -> list of IPs, or a callable taking the per-host call count."""
+    calls = []
+
+    def lookup(host):
+        calls.append(host)
+        if host not in answers:
+            raise socket.gaierror("not found")
+        answer = answers[host]
+        return answer(calls.count(host)) if callable(answer) else answer
+
+    monkeypatch.setattr(upcheck, "_lookup", lookup)
+    return calls
+
+
+def _resolve(raw):
+    return asyncio.run(upcheck._resolve_public(httpx.URL(raw)))
 
 
 class TestNormalizeUrl:
@@ -156,3 +180,50 @@ class TestParseTarget:
         with pytest.raises(upcheck.Rejected) as exc_info:
             upcheck._parse_target(raw)
         assert str(exc_info.value) == message
+
+
+class TestResolvePublic:
+    def test_returns_ipv4_first_without_duplicates(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["2606:4700:4700::1111", "1.1.1.1", "8.8.8.8", "1.1.1.1"]})
+        assert _resolve("https://spiegel.de") == ["1.1.1.1", "8.8.8.8", "2606:4700:4700::1111"]
+
+    def test_ip_literal_skips_dns(self, monkeypatch):
+        calls = _fake_dns(monkeypatch, {})
+        assert _resolve("https://1.1.1.1") == ["1.1.1.1"]
+        assert calls == []
+
+    @pytest.mark.parametrize(
+        "addresses",
+        [
+            ["1.1.1.1", "10.0.0.1"],
+            ["127.0.0.1"],
+            ["169.254.169.254"],
+            ["::ffff:127.0.0.1"],
+            ["2002:7f00:1::"],
+            ["64:ff9b::7f00:1"],
+        ],
+    )
+    def test_blocks_when_any_address_is_not_public(self, monkeypatch, addresses):
+        _fake_dns(monkeypatch, {"spiegel.de": addresses})
+        with pytest.raises(upcheck.NotPublic):
+            _resolve("https://spiegel.de")
+
+    def test_nat64_of_public_ipv4_is_allowed(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["64:ff9b::808:808"]})
+        assert _resolve("https://spiegel.de") == ["64:ff9b::808:808"]
+
+    def test_private_ip_literal_is_blocked(self, monkeypatch):
+        _fake_dns(monkeypatch, {})
+        with pytest.raises(upcheck.NotPublic):
+            _resolve("https://192.168.1.1")
+
+    def test_unknown_host_is_unresolvable(self, monkeypatch):
+        _fake_dns(monkeypatch, {})
+        with pytest.raises(upcheck.Unresolvable):
+            _resolve("https://spiegel.de")
+
+    def test_slow_dns_is_unresolvable(self, monkeypatch):
+        monkeypatch.setattr(upcheck, "_DNS_TIMEOUT", 0.05)
+        _fake_dns(monkeypatch, {"spiegel.de": lambda _count: time.sleep(0.3) or ["1.1.1.1"]})
+        with pytest.raises(upcheck.Unresolvable):
+            _resolve("https://spiegel.de")
