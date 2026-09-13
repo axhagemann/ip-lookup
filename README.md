@@ -106,6 +106,15 @@ docker run --rm -v ip-lookup_goatcounter_data:/data -v "$PWD":/backup alpine \
 
 Bump the image tag in `docker-compose.yml`, then `docker compose pull && docker compose up -d`. The service runs with `-automigrate`, so schema migrations apply on startup.
 
+**Re-verify the `skipgc` key after every bump.** The opt-out button in §5 of both privacy policies writes `localStorage.skipgc` directly, relying on `count.js` reading that key in its `filter()` (see [Opt-out](#opt-out) above). That is an upstream implementation detail, not a documented API — if a release renames it, the button silently stops working while both policies still promise it does. Check the served script:
+
+```bash
+# Host header matters here for the same reason it does in nginx (see above).
+curl -s -H 'Host: stats.yourdomain.com' http://127.0.0.1:8081/count.js | grep skipgc
+```
+
+No match means the opt-out is broken: update the key in `static/datenschutz.html` and `static/privacy.html` (and the assertion in `tests/test_analytics.py`) before the new image stays up.
+
 ## Development
 
 ```bash

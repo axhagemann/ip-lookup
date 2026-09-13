@@ -249,10 +249,14 @@ Only the third should appear in the dashboard.
 | 7 | `down && up -d` preserves data | Named volume declared; needs deploy to confirm |
 | 8 | README updated; tests pass; lint clean | README done; tests/lint **not run** |
 
-Two things here go beyond the plan and are worth an explicit decision from the owner, since
-both trade data completeness for a stronger objection mechanism:
+Two things here go beyond the plan, since both trade data completeness for a stronger
+objection mechanism. **Both were confirmed keepers by the owner on 2026-09-13:**
 
 - **DNT/GPC returns 204**, suppressing a real slice of traffic (Brave defaults to
-  `Sec-GPC: 1`). Removing the map means removing the claim from both policies.
+  `Sec-GPC: 1`). Removing the map means removing the claim from both policies. Kept: it is
+  the only objection route that works without JavaScript, and so the only one that covers
+  the `<noscript>` pixel.
 - **The opt-out button** replaces the plan's plain link, because the upstream
-  `#toggle-goatcounter` mechanism re-enables tracking on refresh.
+  `#toggle-goatcounter` mechanism re-enables tracking on refresh. Kept, with the coupling
+  it introduces — the button writes `localStorage.skipgc` directly, an upstream internal —
+  now flagged in the README's Upgrades section as a post-bump check.
