@@ -277,6 +277,7 @@ sudo netfilter-persistent save
 |---|---|---|
 | `rate` | `20r/m` per IP | ~1 request every 3 seconds on `/ip` |
 | `burst` | `5` | allows a short spike (e.g. first page load triggers 2 requests) |
+| `upcheck` zone | `10r/m`, burst `3` | on `/api/up` (main domain and `ip6.`) — each check makes an outbound request |
 | `limit_conn` | `5` on subdomains, `10` on main | max concurrent connections per IP |
 | `proxy_read_timeout` | `10s` | drops slow/stalled connections |
 

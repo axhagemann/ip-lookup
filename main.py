@@ -19,6 +19,8 @@ logging.basicConfig(
     datefmt="%Y-%m-%dT%H:%M:%S",
 )
 logger = logging.getLogger("ipinfo")
+# httpx logs every request URL at INFO, which would record the URLs visitors check in /up.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 @asynccontextmanager

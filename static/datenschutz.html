@@ -68,7 +68,22 @@
           <p>
             Diese Zuordnung erfolgt ausschließlich anhand einer lokal auf dem Server
             gespeicherten Datenbank (MaxMind GeoLite2). Ihre IP-Adresse wird nicht
-            an MaxMind oder andere Dritte übermittelt.
+            an MaxMind oder andere Dritte übermittelt. Das Ergebnis wird im
+            Arbeitsspeicher des Servers bis zu einer Stunde zwischengespeichert, damit
+            wiederholte Abrufe nicht erneut nachgeschlagen werden müssen.
+          </p>
+          <p>
+            Die Abfrage steht auch als Programmierschnittstelle zur Verfügung und kann
+            von anderen Websites aus aufgerufen werden. Besuchen Sie eine solche Website,
+            wird Ihre IP-Adresse auf dieselbe Weise verarbeitet.
+          </p>
+          <p>
+            Mit dem Werkzeug „Is It Up?“ können Sie prüfen, ob eine Website erreichbar
+            ist. Dazu verarbeitet der Server die von Ihnen eingegebene Adresse (URL),
+            löst sie auf und ruft sie von seiner eigenen IP-Adresse aus auf; die
+            geprüfte Website erhält dabei keine Informationen über Sie. Die Adresse wird
+            nur für die Prüfung verwendet und nicht gespeichert; lediglich bei
+            technischen Störungen kann sie in den Serverprotokollen (Punkt 3) erscheinen.
           </p>
         </section>
 
@@ -91,8 +106,9 @@
         <section aria-labelledby="sec-4">
           <h2 id="sec-4"><span aria-hidden="true">// </span>4. Rechtsgrundlage</h2>
           <p>
-            Die Verarbeitung Ihrer IP-Adresse zur Bereitstellung des Dienstes sowie deren
-            Speicherung in Serverprotokollen erfolgt auf Grundlage von
+            Die Verarbeitung Ihrer IP-Adresse zur Bereitstellung des Dienstes, die
+            Verarbeitung der beim Werkzeug „Is It Up?“ eingegebenen Adresse sowie die
+            Speicherung Ihrer IP-Adresse in Serverprotokollen erfolgt auf Grundlage von
             <span class="legal-ref">Art. 6 Abs. 1 lit. f DSGVO</span>. Unser berechtigtes
             Interesse liegt in der sicheren, stabilen und funktionsfähigen Bereitstellung
             unseres Online-Angebots.
