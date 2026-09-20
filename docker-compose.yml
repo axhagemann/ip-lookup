@@ -2,6 +2,10 @@ services:
   app:
     build: .
     restart: unless-stopped
+    # Defence in depth behind the capped body reads in upcheck.py: if a checked
+    # site ever does get a large body past them, one container restarts instead
+    # of the host running out of memory.
+    mem_limit: 256m
     ports:
       - "127.0.0.1:8000:8000"
     networks:
