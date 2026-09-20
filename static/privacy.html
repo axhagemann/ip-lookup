@@ -77,9 +77,10 @@
           <p>
             The "Is It Up?" tool lets you check whether a website is reachable. For this, the server
             processes the address (URL) you enter, resolves it and requests it from its own IP address;
-            the checked website receives no information about you. The address is used only for the
-            check and is not stored; only in the event of technical faults can it appear in the server
-            logs (Section 3).
+            the checked website receives no information about you. Only the domain is requested: any
+            path or query string you enter is discarded before the check and never reaches the checked
+            website. The address is used only for the check and is not stored; only in the event of
+            technical faults can it appear in the server logs (Section 3).
           </p>
         </section>
 

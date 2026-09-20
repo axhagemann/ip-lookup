@@ -1,9 +1,13 @@
 """Keep the promises in datenschutz.html / privacy.html deliverable by the code."""
 
+import asyncio
 import logging
 from pathlib import Path
 
+import httpx
+
 import main  # noqa: F401  (imported for its logging setup)
+import upcheck
 
 ROOT = Path(__file__).resolve().parent.parent
 POLICIES = [ROOT / "static" / name for name in ("datenschutz.html", "privacy.html")]
@@ -44,3 +48,24 @@ def test_rejected_up_check_url_is_not_logged(client, caplog):
         res = client.get("/api/up", params={"url": f"https://{marker}.spiegel.de:22/"})
     assert res.json()["stage"] == "input"
     assert all(marker not in record.getMessage() for record in caplog.records)
+
+
+def test_policies_say_only_the_domain_is_requested():
+    datenschutz, privacy = (path.read_text(encoding="utf-8") for path in POLICIES)
+    assert "nur die Domain" in datenschutz
+    assert "Only the domain is requested" in privacy
+
+
+def test_entered_path_never_reaches_the_checked_site(monkeypatch):
+    marker = "privacy-marker-9d2b"
+    monkeypatch.setattr(upcheck, "_lookup", lambda host: ["1.1.1.1"])
+    seen = []
+
+    def handler(request):
+        seen.append(str(request.url))
+        return httpx.Response(200)
+
+    raw = f"spiegel.de/{marker}?q={marker}"
+    result = asyncio.run(upcheck._run_check(raw, httpx.MockTransport(handler)))
+    assert result["status"] == "up"
+    assert seen and all(marker not in url for url in seen)

@@ -111,6 +111,18 @@ def _parse_target(raw: str) -> httpx.URL:
     return url.copy_with(fragment=None)
 
 
+def _to_origin(url: httpx.URL) -> tuple[httpx.URL, str | None]:
+    """Reduce the visitor's URL to its origin, and report what that dropped.
+
+    Checking a deep link would report a site as "erroring" over a single missing
+    page, and would make this server fetch whatever path a visitor pasted. Only
+    the entered URL is reduced — redirect targets keep their paths, or a site
+    that sends "/" to "/en/" would bounce back to "/" until the hop limit.
+    """
+    dropped = url.raw_path.decode("ascii")
+    return url.copy_with(raw_path=b"/"), dropped if dropped != "/" else None
+
+
 class NotPublic(Exception):
     """The host resolves to at least one address that is not publicly routable."""
 
@@ -294,18 +306,21 @@ async def _run_check(raw: str, transport: httpx.AsyncBaseTransport | None = None
     except Rejected as exc:
         return {"status": "invalid", "stage": "input", "detail": str(exc)}
 
+    target, ignored_path = _to_origin(target)
+
     # Attached to every outcome below: a site that is down is exactly when
-    # "whose address is this?" is most worth answering.
-    found: dict = {}
+    # "whose address is this?" and "what was actually checked?" are most worth answering.
+    found: dict = {"ignored_path": ignored_path} if ignored_path else {}
     try:
         async with asyncio.timeout(_CHECK_BUDGET):
             try:
                 ips = await _resolve_public(target)
             except NotPublic:
-                return {"status": "invalid", "stage": "input", "detail": "Target resolves to a non-public address"}
+                detail = "Target resolves to a non-public address"
+                return {"status": "invalid", "stage": "input", "detail": detail, **found}
             except Unresolvable:
-                return {"status": "down", "stage": "dns", "detail": "Domain does not resolve"}
-            found = {"resolved_ips": ips, "ip_geo": _geo_for(ips)}
+                return {"status": "down", "stage": "dns", "detail": "Domain does not resolve", **found}
+            found |= {"resolved_ips": ips, "ip_geo": _geo_for(ips)}
             result = await _http_check(target, ips, transport)
     except TimeoutError:
         return {"status": "down", "stage": "http", "detail": "Check took too long", **found}

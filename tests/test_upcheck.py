@@ -317,7 +317,7 @@ class TestRunCheck:
         assert result["stage"] == "done"
         assert result["http_status"] == 200
         assert result["final_url"] == "https://www.spiegel.de/start"
-        assert result["redirects"] == ["https://spiegel.de", "https://www.spiegel.de/"]
+        assert result["redirects"] == ["https://spiegel.de/", "https://www.spiegel.de/"]
         assert result["resolved_ips"] == ["1.1.1.1"]
         assert [r.url.host for r in seen] == ["1.1.1.1", "8.8.8.8", "8.8.8.8"]
 
@@ -335,7 +335,7 @@ class TestRunCheck:
         assert result["detail"] == (
             "Redirected to a URL that can't be checked: port 8081 isn't allowed — only 80, 443, 8080 and 8443"
         )
-        assert result["redirects"] == ["https://spiegel.de"]
+        assert result["redirects"] == ["https://spiegel.de/"]
         assert "final_url" not in result
         assert len(seen) == 1
 
@@ -374,7 +374,7 @@ class TestRunCheck:
         assert result["status"] == "down"
         assert result["stage"] == "dns"
         assert result["detail"] == "Redirect target does not resolve"
-        assert result["redirects"] == ["https://spiegel.de"]
+        assert result["redirects"] == ["https://spiegel.de/"]
 
     def test_five_redirects_are_followed(self, monkeypatch):
         _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"]})
@@ -458,6 +458,68 @@ class TestRunCheck:
         assert calls == []
 
 
+class TestOriginOnly:
+    """The entered URL is reduced to its origin; only redirect targets keep a path."""
+
+    def test_path_and_query_are_never_requested(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"]})
+        transport, seen = _recording()
+        result = asyncio.run(upcheck._run_check("spiegel.de/admin?token=abc", transport))
+        assert result["status"] == "up"
+        assert result["ignored_path"] == "/admin?token=abc"
+        assert result["final_url"] == "https://spiegel.de/"
+        assert [str(r.url) for r in seen] == ["https://1.1.1.1/"]
+
+    def test_query_without_a_path_is_reported(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"]})
+        transport, seen = _recording()
+        result = asyncio.run(upcheck._run_check("spiegel.de?token=abc", transport))
+        assert result["ignored_path"] == "/?token=abc"
+        assert [str(r.url) for r in seen] == ["https://1.1.1.1/"]
+
+    def test_port_and_scheme_survive_truncation(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"]})
+        transport, seen = _recording()
+        result = asyncio.run(upcheck._run_check("http://spiegel.de:8080/x", transport))
+        assert result["ignored_path"] == "/x"
+        assert [str(r.url) for r in seen] == ["http://1.1.1.1:8080/"]
+
+    @pytest.mark.parametrize("raw", ["spiegel.de", "spiegel.de/", "https://spiegel.de/#top"])
+    def test_nothing_to_ignore_reports_nothing(self, monkeypatch, raw):
+        _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"]})
+        transport, _seen = _recording()
+        result = asyncio.run(upcheck._run_check(raw, transport))
+        assert "ignored_path" not in result
+
+    def test_reported_even_when_the_domain_does_not_resolve(self, monkeypatch):
+        _fake_dns(monkeypatch, {})
+        result = _run("spiegel.de/admin", lambda request: httpx.Response(200))
+        assert result["status"] == "down"
+        assert result["stage"] == "dns"
+        assert result["ignored_path"] == "/admin"
+
+    def test_reported_even_when_the_address_is_not_public(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["10.0.0.1"]})
+        result = _run("spiegel.de/admin", lambda request: httpx.Response(200))
+        assert result["status"] == "invalid"
+        assert result["ignored_path"] == "/admin"
+
+    def test_redirect_target_keeps_its_path(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"]})
+        seen = []
+
+        def handler(request):
+            seen.append(request)
+            if request.url.path == "/":
+                return httpx.Response(302, headers={"Location": "/en/home"})
+            return httpx.Response(200)
+
+        result = _run("spiegel.de/admin", handler)
+        assert result["status"] == "up"
+        assert result["final_url"] == "https://spiegel.de/en/home"
+        assert [r.url.path for r in seen] == ["/", "/en/home"]
+
+
 class TestUpPage:
     html = UP_HTML.read_text(encoding="utf-8")
 
@@ -468,6 +530,12 @@ class TestUpPage:
         assert 'blocked: "Can\'t be checked"' in self.html
         assert 'redirect: "Redirect"' in self.html
         assert ".status-blocked" in self.html
+
+    def test_says_up_front_that_only_the_domain_is_checked(self):
+        assert "Only the domain is checked" in self.html
+
+    def test_renders_the_ignored_path_from_the_response(self):
+        assert "ignored_path" in self.html
 
     def test_server_text_is_never_injected_as_html(self):
         assert "innerHTML" not in self.html

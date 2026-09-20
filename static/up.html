@@ -157,6 +157,7 @@
     <p class="description">
       Check whether a website is reachable, with response time, HTTP status,
       and the exact stage a failed check broke down at.
+      Only the domain is checked &mdash; anything after it is ignored.
     </p>
 
     <div class="panel">
@@ -283,6 +284,8 @@
 
         show(data.status, data.detail || (data.status === "up" ? "Site responded normally" : ""));
 
+        addField("Ignored", data.ignored_path
+          ? data.ignored_path + " \u2014 only the domain is checked" : null);
         addField("HTTP status", data.http_status);
         addField("Response time", data.response_time_ms != null ? data.response_time_ms + " ms" : null);
         if (data.redirects && data.redirects.length) {
