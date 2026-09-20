@@ -48,6 +48,12 @@ This is a single FastAPI app (`main.py`) serving a static multi-tool site (`stat
 
 **CIDR Calculator (`/cidr` + `cidr.html` + `cidr-logic.js`)** is intentionally backend-free: all IPv4/IPv6 parsing, prefix-mask math, and address formatting (including `::` compression and embedded IPv4-mapped addresses) is done client-side in JS using `BigInt`, so it works even if GeoLite2/the geo cache is down. Don't add a server round-trip for this.
 
+**Analytics (GoatCounter)** runs as its own container bound to `127.0.0.1:8081`, with SQLite in the `goatcounter_data` volume. Two things about it are easy to break:
+- GoatCounter picks the site from the `Host` header. The `/count` and `/count.js` blocks on the main domain in `nginx.docker.conf` must therefore rewrite `Host` to `stats.alexander-hagemann.de` — the vhost the site was created under. `proxy_set_header Host $host;` there silently stops recording pageviews.
+- Its real-IP middleware prefers `Cf-Connecting-Ip`/`Fly-Client-Ip`/`X-Azure-Socketip` over `X-Real-IP`, and those are client-settable. The proxy blocks blank them out; don't drop those lines.
+
+The tracking snippet on every page uses *relative* `/count` and `/count.js` so all requests stay first-party — don't replace them with an absolute URL or a `gc.zgo.at` script. When adding a page, add the snippet (with the page's own path in the `<noscript>` pixel) and extend `tests/test_analytics.py`.
+
 **Nginx configs are environment-specific, not interchangeable:** `nginx.conf` is for a bare-metal (non-Docker) deployment; `nginx.docker.conf` is the real one used by `docker-compose.yml` (listens on unprivileged 8080/8443, host network mode); `nginx.init.conf` is a minimal bootstrap-only config used solely to serve ACME challenges before real certs exist. When changing routing/rate-limit rules, `nginx.docker.conf` is almost always the one that matters.
 
 ## Design constraints (see PRODUCT.md / DESIGN.md for full detail)

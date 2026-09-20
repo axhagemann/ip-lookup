@@ -77,7 +77,8 @@
     .status-up { color: #7fc98a; }
     .status-degraded { color: #d6b25e; }
     .status-down { color: #d67e7e; }
-    .status-invalid { color: #c0c0c0; }
+    .status-invalid,
+    .status-blocked { color: #c0c0c0; }
 
     .status-note {
       font-size: 0.85rem;
@@ -156,12 +157,13 @@
     <p class="description">
       Check whether a website is reachable, with response time, HTTP status,
       and the exact stage a failed check broke down at.
+      Only the domain is checked &mdash; anything after it is ignored.
     </p>
 
     <div class="panel">
       <div class="input-row">
         <input type="text" id="url" placeholder="example.com"
-               autocomplete="off" spellcheck="false"
+               maxlength="2048" autocomplete="off" spellcheck="false"
                aria-label="URL to check" />
         <button id="check">Check</button>
       </div>
@@ -202,6 +204,7 @@
       degraded: "Reachable, but erroring",
       down: "Down",
       invalid: "Invalid input",
+      blocked: "Can't be checked",
     };
 
     const STAGE_LABELS = {
@@ -209,6 +212,7 @@
       connect: "TCP connection",
       http: "HTTP request",
       input: "Input validation",
+      redirect: "Redirect",
     };
 
     function addField(label, value) {
@@ -280,6 +284,8 @@
 
         show(data.status, data.detail || (data.status === "up" ? "Site responded normally" : ""));
 
+        addField("Ignored", data.ignored_path
+          ? data.ignored_path + " \u2014 only the domain is checked" : null);
         addField("HTTP status", data.http_status);
         addField("Response time", data.response_time_ms != null ? data.response_time_ms + " ms" : null);
         if (data.redirects && data.redirects.length) {
@@ -301,5 +307,9 @@
     button.addEventListener("click", check);
     input.addEventListener("keydown", (e) => { if (e.key === "Enter") check(); });
   </script>
+
+  <!-- Self-hosted GoatCounter: first-party endpoints only, cookieless, no third party. -->
+  <script data-goatcounter="/count" async src="/count.js"></script>
+  <noscript><img src="/count?p=/up" alt="" aria-hidden="true" width="1" height="1" style="position:absolute"></noscript>
 </body>
 </html>
