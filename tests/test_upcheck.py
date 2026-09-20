@@ -1,4 +1,4 @@
-"""Tests for upcheck.py — URL normalization, SSRF guard, and response classification."""
+"""Tests for upcheck.py — input rules, address checks, pinned requests, and the full check."""
 
 import asyncio
 import socket
@@ -40,49 +40,8 @@ def _recording(status=200, headers=None):
     return httpx.MockTransport(handler), seen
 
 
-class TestNormalizeUrl:
-    def test_adds_https_when_scheme_missing(self):
-        assert upcheck._normalize_url("example.com") == "https://example.com"
-
-    def test_keeps_explicit_http(self):
-        assert upcheck._normalize_url("http://example.com") == "http://example.com"
-
-    def test_rejects_empty(self):
-        assert upcheck._normalize_url("") is None
-        assert upcheck._normalize_url("   ") is None
-
-    def test_rejects_non_http_schemes(self):
-        assert upcheck._normalize_url("ftp://example.com") is None
-        assert upcheck._normalize_url("file:///etc/passwd") is None
-
-    def test_rejects_missing_host(self):
-        assert upcheck._normalize_url("https://") is None
-
-    def test_rejects_oversized_input(self):
-        assert upcheck._normalize_url("https://example.com/" + "a" * 3000) is None
-
-
-class TestSsrfGuard:
-    def test_blocks_loopback(self):
-        _, error = upcheck._guard_ssrf("localhost")
-        assert error == "blocked"
-
-    def test_blocks_private_ipv4_literal(self):
-        _, error = upcheck._guard_ssrf("192.168.1.1")
-        assert error == "blocked"
-
-    def test_blocks_ipv4_mapped_ipv6(self):
-        _, error = upcheck._guard_ssrf("::ffff:127.0.0.1")
-        assert error == "blocked"
-
-    def test_blocks_link_local_metadata_range(self):
-        # Cloud metadata endpoints live at 169.254.169.254
-        _, error = upcheck._guard_ssrf("169.254.169.254")
-        assert error == "blocked"
-
-    def test_dns_failure_reported(self):
-        _, error = upcheck._guard_ssrf("this-domain-definitely-does-not-exist.invalid")
-        assert error == "dns"
+def _run(raw, handler):
+    return asyncio.run(upcheck._run_check(raw, httpx.MockTransport(handler)))
 
 
 class TestClassify:
@@ -334,3 +293,162 @@ class TestFetchHop:
         with pytest.raises(httpx.ReadError):
             self._fetch("https://spiegel.de/", "1.1.1.1", httpx.MockTransport(handler))
         assert [r.method for r in seen] == ["HEAD", "GET"]
+
+
+class TestRunCheck:
+    def test_follows_redirects_and_reports_host_names(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"], "www.spiegel.de": ["8.8.8.8"]})
+        seen = []
+
+        def handler(request):
+            seen.append(request)
+            if request.headers["host"] == "spiegel.de":
+                return httpx.Response(301, headers={"Location": "https://www.spiegel.de/"})
+            if request.url.path == "/":
+                return httpx.Response(302, headers={"Location": "/start"})
+            return httpx.Response(200)
+
+        result = _run("spiegel.de", handler)
+        assert result["status"] == "up"
+        assert result["stage"] == "done"
+        assert result["http_status"] == 200
+        assert result["final_url"] == "https://www.spiegel.de/start"
+        assert result["redirects"] == ["https://spiegel.de", "https://www.spiegel.de/"]
+        assert result["resolved_ips"] == ["1.1.1.1"]
+        assert [r.url.host for r in seen] == ["1.1.1.1", "8.8.8.8", "8.8.8.8"]
+
+    def test_redirect_to_disallowed_port_is_blocked_before_any_request(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"]})
+        seen = []
+
+        def handler(request):
+            seen.append(request)
+            return httpx.Response(302, headers={"Location": "http://127.0.0.1:8081/"})
+
+        result = _run("spiegel.de", handler)
+        assert result["status"] == "blocked"
+        assert result["stage"] == "redirect"
+        assert result["detail"] == (
+            "Redirected to a URL that can't be checked: port 8081 isn't allowed — only 80, 443, 8080 and 8443"
+        )
+        assert result["redirects"] == ["https://spiegel.de"]
+        assert "final_url" not in result
+        assert len(seen) == 1
+
+    def test_redirect_to_internal_address_is_blocked_before_any_request(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"], "intern.spiegel.de": ["10.0.0.1"]})
+        seen = []
+
+        def handler(request):
+            seen.append(request)
+            return httpx.Response(302, headers={"Location": "https://intern.spiegel.de/"})
+
+        result = _run("spiegel.de", handler)
+        assert result["status"] == "blocked"
+        assert result["stage"] == "redirect"
+        assert result["detail"] == "Redirected to a non-public address"
+        assert len(seen) == 1
+
+    def test_redirect_message_keeps_leading_acronym(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"]})
+
+        def handler(request):
+            return httpx.Response(302, headers={"Location": "https://user:pass@spiegel.de/"})
+
+        result = _run("spiegel.de", handler)
+        assert result["detail"] == (
+            "Redirected to a URL that can't be checked: URLs with a username or password aren't accepted"
+        )
+
+    def test_redirect_to_unresolvable_host_is_down(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"]})
+
+        def handler(request):
+            return httpx.Response(302, headers={"Location": "https://gone.spiegel.de/"})
+
+        result = _run("spiegel.de", handler)
+        assert result["status"] == "down"
+        assert result["stage"] == "dns"
+        assert result["detail"] == "Redirect target does not resolve"
+        assert result["redirects"] == ["https://spiegel.de"]
+
+    def test_five_redirects_are_followed(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"]})
+        seen = []
+
+        def handler(request):
+            seen.append(request)
+            if len(seen) <= 5:
+                return httpx.Response(302, headers={"Location": f"/hop{len(seen)}"})
+            return httpx.Response(200)
+
+        result = _run("spiegel.de", handler)
+        assert result["status"] == "up"
+        assert len(result["redirects"]) == 5
+        assert len(seen) == 6
+
+    def test_more_than_five_redirects_is_degraded(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"]})
+        seen = []
+
+        def handler(request):
+            seen.append(request)
+            return httpx.Response(302, headers={"Location": f"/hop{len(seen)}"})
+
+        result = _run("spiegel.de", handler)
+        assert result["status"] == "degraded"
+        assert result["stage"] == "http"
+        assert result["detail"] == "More than 5 redirects"
+        assert len(result["redirects"]) == 6
+        assert len(seen) == 6
+
+    def test_redirect_status_without_location_is_final(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"]})
+        transport, seen = _recording(302)
+        result = asyncio.run(upcheck._run_check("spiegel.de", transport))
+        assert result["status"] == "up"
+        assert result["http_status"] == 302
+        assert result["redirects"] == []
+        assert len(seen) == 1
+
+    def test_dns_is_not_asked_again_within_a_hop(self, monkeypatch):
+        calls = _fake_dns(monkeypatch, {"spiegel.de": lambda count: ["1.1.1.1"] if count == 1 else ["127.0.0.1"]})
+        seen = []
+
+        def handler(request):
+            seen.append(request)
+            return httpx.Response(405 if request.method == "HEAD" else 200)
+
+        result = _run("spiegel.de", handler)
+        assert result["status"] == "up"
+        assert calls == ["spiegel.de"]
+        assert [(r.method, r.url.host) for r in seen] == [("HEAD", "1.1.1.1"), ("GET", "1.1.1.1")]
+
+    def test_check_budget_is_enforced(self, monkeypatch):
+        monkeypatch.setattr(upcheck, "_CHECK_BUDGET", 0.05)
+        _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"]})
+
+        async def handler(request):
+            await asyncio.sleep(1)
+            return httpx.Response(200)
+
+        result = _run("spiegel.de", handler)
+        assert result["status"] == "down"
+        assert result["stage"] == "http"
+        assert result["detail"] == "Check took too long"
+        assert result["resolved_ips"] == ["1.1.1.1"]
+
+    def test_entered_host_with_private_address_is_invalid(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["10.0.0.1"]})
+        result = _run("spiegel.de", lambda request: httpx.Response(200))
+        assert result == {"status": "invalid", "stage": "input", "detail": "Target resolves to a non-public address"}
+
+    def test_rejected_input_has_no_geo(self, monkeypatch):
+        calls = _fake_dns(monkeypatch, {})
+        result = _run("spiegel.de:22", lambda request: httpx.Response(200))
+        assert result == {
+            "status": "invalid",
+            "stage": "input",
+            "detail": "Port 22 isn't allowed — only 80, 443, 8080 and 8443",
+        }
+        assert calls == []

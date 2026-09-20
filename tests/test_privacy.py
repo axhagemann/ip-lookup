@@ -36,3 +36,11 @@ def test_proxy_sets_client_ip_instead_of_trusting_the_client():
 def test_policies_cover_the_up_checker():
     for path in POLICIES:
         assert "Is It Up?" in path.read_text(encoding="utf-8")
+
+
+def test_rejected_up_check_url_is_not_logged(client, caplog):
+    marker = "privacy-marker-7f3a"
+    with caplog.at_level(logging.DEBUG):
+        res = client.get("/api/up", params={"url": f"https://{marker}.spiegel.de:22/"})
+    assert res.json()["stage"] == "input"
+    assert all(marker not in record.getMessage() for record in caplog.records)

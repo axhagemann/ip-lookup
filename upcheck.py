@@ -2,11 +2,10 @@
 
 Mounted into main.py via `app.include_router(router)`.
 
-Security note: this endpoint makes the server fetch user-supplied URLs.
-_guard_ssrf() rejects private, loopback, link-local and reserved targets so the
-tool cannot be used to probe the host's internal network. There is a small
-TOCTOU window (DNS rebinding) between the guard resolution and the actual
-request; acceptable for a personal tool behind nginx rate limiting.
+Security note: this endpoint makes the server fetch user-supplied URLs. Every URL,
+including each redirect target, must pass _parse_target() (scheme, credentials, host
+form, port) and _resolve_public() (every address public). Each request is then pinned
+to the checked address, so DNS rebinding cannot swap in an internal target.
 """
 
 import asyncio
@@ -14,7 +13,6 @@ import ipaddress
 import re
 import socket
 import time
-from urllib.parse import urlsplit
 
 import httpx
 from fastapi import APIRouter, Query
@@ -35,6 +33,8 @@ _DNS_LABEL = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?")
 
 _DNS_TIMEOUT = 5.0  # seconds
 _NAT64 = ipaddress.IPv6Network("64:ff9b::/96")
+_CHECK_BUDGET = 12.0  # seconds for all DNS lookups and requests; nginx gives up after 15
+_REDIRECT_CODES = frozenset({301, 302, 303, 307, 308})
 
 # Browser-like headers. Many enterprise WAFs reject requests with a bot-shaped
 # User-Agent or missing Accept headers before they ever reach the origin.
@@ -58,19 +58,6 @@ _RETRY_AS_GET = {403, 405, 501}
 
 # A connect-level failure is the target's answer, not HEAD's — see _fetch_hop.
 _CONNECT_ERRORS = (httpx.ConnectError, httpx.ConnectTimeout)
-
-
-def _normalize_url(raw: str) -> str | None:
-    """Return a normalized http(s) URL, or None if the input is unusable."""
-    raw = raw.strip()
-    if not raw or len(raw) > 2048:
-        return None
-    if "://" not in raw:
-        raw = "https://" + raw
-    parts = urlsplit(raw)
-    if parts.scheme not in ("http", "https") or not parts.hostname:
-        return None
-    return raw
 
 
 class Rejected(Exception):
@@ -155,6 +142,9 @@ async def _resolve_public(url: httpx.URL) -> list[str]:
     else:
         loop = asyncio.get_running_loop()
         try:
+            # An executor call cannot be cancelled: after the timeout the thread stays in
+            # getaddrinfo until the OS resolver gives up. Bounded in practice by the nginx
+            # rate limit on /api/up (10/min, burst 3).
             found = await asyncio.wait_for(loop.run_in_executor(None, _lookup, host), _DNS_TIMEOUT)
         except (socket.gaierror, TimeoutError):
             raise Unresolvable from None
@@ -206,25 +196,6 @@ async def _fetch_hop(url: httpx.URL, ip: str, transport: httpx.AsyncBaseTranspor
         return response
 
 
-def _guard_ssrf(host: str) -> tuple[list[str], str | None]:
-    """Resolve host and reject non-public targets.
-
-    Returns (resolved_ips, error). error is None when the target is allowed.
-    """
-    try:
-        infos = socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)
-    except socket.gaierror:
-        return [], "dns"
-    ips = sorted({info[4][0] for info in infos})
-    for ip in ips:
-        addr = ipaddress.ip_address(ip)
-        if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped:
-            addr = addr.ipv4_mapped
-        if not addr.is_global:
-            return ips, "blocked"
-    return ips, None
-
-
 def _geo_for(ips: list[str]) -> list[dict]:
     """Geolocate the resolved target IPs, in the same order as `ips`.
 
@@ -265,74 +236,93 @@ def _describe(status_code: int) -> str:
     return f"Server responded with an error ({status_code})"
 
 
-async def _http_check(url: str) -> dict:
-    """HEAD first (cheap), fall back to GET when HEAD is rejected or blocked."""
-    async with httpx.AsyncClient(
-        timeout=_TIMEOUT,
-        follow_redirects=True,
-        max_redirects=_MAX_REDIRECTS,
-        headers=_HEADERS,
-    ) as client:
-        start = time.monotonic()
-        try:
-            response = await client.head(url)
-            if response.status_code in _RETRY_AS_GET:
-                response = await client.get(url)
-        except httpx.HTTPError:
-            response = await client.get(url)
-        elapsed_ms = round((time.monotonic() - start) * 1000)
+def _as_clause(message: str) -> str:
+    return message if message[:2].isupper() else message[0].lower() + message[1:]
 
-    redirects = [str(r.url) for r in response.history]
+
+async def _http_check(url: httpx.URL, ips: list[str], transport: httpx.AsyncBaseTransport | None = None) -> dict:
+    start = time.monotonic()
+    redirects: list[str] = []
+    while True:
+        response = await _fetch_hop(url, ips[0], transport)
+        location = response.headers.get("location")
+        if response.status_code not in _REDIRECT_CODES or not location:
+            break
+        redirects.append(str(url))
+        if len(redirects) > _MAX_REDIRECTS:
+            return {
+                "status": "degraded",
+                "stage": "http",
+                "detail": f"More than {_MAX_REDIRECTS} redirects",
+                "redirects": redirects,
+            }
+        try:
+            url = _parse_target(str(url.join(location)))
+            ips = await _resolve_public(url)
+        except Rejected as exc:
+            detail = f"Redirected to a URL that can't be checked: {_as_clause(str(exc))}"
+            return {"status": "blocked", "stage": "redirect", "detail": detail, "redirects": redirects}
+        except NotPublic:
+            detail = "Redirected to a non-public address"
+            return {"status": "blocked", "stage": "redirect", "detail": detail, "redirects": redirects}
+        except Unresolvable:
+            detail = "Redirect target does not resolve"
+            return {"status": "down", "stage": "dns", "detail": detail, "redirects": redirects}
+
     return {
         "status": _classify(response.status_code),
+        "stage": "done",
         "detail": _describe(response.status_code),
         "http_status": response.status_code,
-        "response_time_ms": elapsed_ms,
-        "final_url": str(response.url),
+        "response_time_ms": round((time.monotonic() - start) * 1000),
+        "final_url": str(url),
         "redirects": redirects,
     }
 
 
 @router.get("/api/up")
-async def check_up(url: str = Query(..., max_length=2048)):
-    normalized = _normalize_url(url)
-    if normalized is None:
-        return {"status": "invalid", "stage": "input", "detail": "Not a valid http(s) URL"}
+async def check_up(url: str = Query(...)):
+    # No max_length here: FastAPI would answer an over-long URL with a 422 validation
+    # body the page cannot render. _parse_target enforces _MAX_URL_LENGTH and returns
+    # "URL is too long" in the normal response shape.
+    return await _run_check(url)
 
-    host = urlsplit(normalized).hostname or ""
-    loop = asyncio.get_running_loop()
-    ips, guard_error = await loop.run_in_executor(None, _guard_ssrf, host)
 
-    if guard_error == "dns":
-        return {"status": "down", "stage": "dns", "detail": "Domain does not resolve"}
-    if guard_error == "blocked":
-        return {"status": "invalid", "stage": "input", "detail": "Target resolves to a non-public address"}
+async def _run_check(raw: str, transport: httpx.AsyncBaseTransport | None = None) -> dict:
+    try:
+        target = _parse_target(raw)
+    except Rejected as exc:
+        return {"status": "invalid", "stage": "input", "detail": str(exc)}
 
     # Attached to every outcome below: a site that is down is exactly when
     # "whose address is this?" is most worth answering.
-    target = {"resolved_ips": ips, "ip_geo": _geo_for(ips)}
-
+    found: dict = {}
     try:
-        result = await _http_check(normalized)
+        async with asyncio.timeout(_CHECK_BUDGET):
+            try:
+                ips = await _resolve_public(target)
+            except NotPublic:
+                return {"status": "invalid", "stage": "input", "detail": "Target resolves to a non-public address"}
+            except Unresolvable:
+                return {"status": "down", "stage": "dns", "detail": "Domain does not resolve"}
+            found = {"resolved_ips": ips, "ip_geo": _geo_for(ips)}
+            result = await _http_check(target, ips, transport)
+    except TimeoutError:
+        return {"status": "down", "stage": "http", "detail": "Check took too long", **found}
     except httpx.ConnectError:
-        return {"status": "down", "stage": "connect", "detail": "Server unreachable", **target}
+        return {"status": "down", "stage": "connect", "detail": "Server unreachable", **found}
     except httpx.ConnectTimeout:
-        return {"status": "down", "stage": "connect", "detail": "Connection timed out", **target}
+        return {"status": "down", "stage": "connect", "detail": "Connection timed out", **found}
     except httpx.ReadTimeout:
         return {
             "status": "down",
             "stage": "http",
             "detail": "Server accepted the connection but did not respond in time",
-            **target,
+            **found,
         }
-    except httpx.TooManyRedirects:
-        return {"status": "degraded", "stage": "http", "detail": f"More than {_MAX_REDIRECTS} redirects", **target}
     except httpx.HTTPError as exc:
-        return {"status": "down", "stage": "http", "detail": type(exc).__name__, **target}
-
-    result["stage"] = "done"
-    result.update(target)
-    return result
+        return {"status": "down", "stage": "http", "detail": type(exc).__name__, **found}
+    return {**result, **found}
 
 
 @router.get("/up")

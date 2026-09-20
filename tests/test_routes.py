@@ -1,3 +1,6 @@
+import upcheck
+
+
 def test_health(client):
     res = client.get("/health")
     assert res.status_code == 200
@@ -61,3 +64,34 @@ def test_ip_endpoint_returns_ip_and_geo(client):
     body = res.json()
     assert body["ip"] == "203.0.113.42"
     assert "geo" in body
+
+
+def _no_dns(host):
+    raise AssertionError(f"DNS must not be queried for rejected input, got {host!r}")
+
+
+def test_up_rejects_disallowed_port_without_dns(client, monkeypatch):
+    monkeypatch.setattr(upcheck, "_lookup", _no_dns)
+    res = client.get("/api/up", params={"url": "spiegel.de:22"})
+    assert res.json() == {
+        "status": "invalid",
+        "stage": "input",
+        "detail": "Port 22 isn't allowed — only 80, 443, 8080 and 8443",
+    }
+
+
+def test_up_rejects_credentials_without_dns(client, monkeypatch):
+    monkeypatch.setattr(upcheck, "_lookup", _no_dns)
+    res = client.get("/api/up", params={"url": "user:pass@spiegel.de"})
+    assert res.json() == {
+        "status": "invalid",
+        "stage": "input",
+        "detail": "URLs with a username or password aren't accepted",
+    }
+
+
+def test_up_rejects_overlong_url_with_a_readable_message(client, monkeypatch):
+    monkeypatch.setattr(upcheck, "_lookup", _no_dns)
+    res = client.get("/api/up", params={"url": "https://spiegel.de/" + "a" * 3000})
+    assert res.status_code == 200
+    assert res.json() == {"status": "invalid", "stage": "input", "detail": "URL is too long"}
