@@ -70,6 +70,152 @@ class TestClassify:
         assert upcheck._classify(404) == "degraded"
         assert upcheck._classify(410) == "degraded"
 
+    def test_challenge_is_up_whatever_the_code(self):
+        # Old Cloudflare interstitials came as 503; the challenge still proves a server answered.
+        assert upcheck._classify(503, challenged=True) == "up"
+        assert upcheck._classify(403, challenged=True) == "up"
+
+
+def _response(status=403, headers=None, body=b""):
+    return httpx.Response(status, headers=headers, content=body)
+
+
+CHALLENGE_BODY = b'<!DOCTYPE html><html lang="en-US"><head><title>Just a moment...</title>'
+
+
+def _challenge_handler(request):
+    """Answers every request with a Cloudflare challenge."""
+    headers = {"content-type": "text/html; charset=UTF-8", "cf-mitigated": "challenge"}
+    return httpx.Response(403, headers=headers, content=CHALLENGE_BODY)
+
+
+def _stub_impersonation(status):
+    async def impersonated(url, ip):
+        return status
+
+    return impersonated
+
+
+class TestIsChallenge:
+    def test_cf_mitigated_header_is_enough(self):
+        assert upcheck._is_challenge(_response(headers={"cf-mitigated": "challenge"}))
+
+    def test_interstitial_title_is_enough(self):
+        headers = {"content-type": "text/html; charset=UTF-8"}
+        assert upcheck._is_challenge(_response(headers=headers, body=CHALLENGE_BODY))
+
+    def test_head_without_body_relies_on_the_header(self):
+        headers = {"content-type": "text/html", "cf-mitigated": "challenge"}
+        assert upcheck._is_challenge(_response(headers=headers))
+
+    def test_plain_403_behind_cloudflare_is_not_a_challenge(self):
+        # A site's own 403 carries server/cf-ray too, so those must not count.
+        headers = {"server": "cloudflare", "cf-ray": "abc-HEL", "content-type": "text/html"}
+        assert not upcheck._is_challenge(_response(headers=headers, body=b"<h1>Forbidden</h1>"))
+
+    def test_ordinary_page_is_not_a_challenge(self):
+        headers = {"content-type": "text/html"}
+        assert not upcheck._is_challenge(_response(200, headers=headers, body=b"<title>Home</title>"))
+
+    def test_title_far_into_a_large_body_is_ignored(self):
+        headers = {"content-type": "text/html"}
+        body = b"<x>" * 2000 + CHALLENGE_BODY
+        assert not upcheck._is_challenge(_response(headers=headers, body=body))
+
+    def test_non_html_body_is_not_sniffed(self):
+        headers = {"content-type": "application/octet-stream"}
+        assert not upcheck._is_challenge(_response(headers=headers, body=CHALLENGE_BODY))
+
+
+class TestDescribe:
+    def test_challenge_is_named_as_such(self):
+        message = upcheck._describe(403, challenged=True)
+        assert message == "Site is up, but served a bot-protection challenge (403). A human browser will reach it fine."
+
+    def test_refusal_without_a_challenge_stays_hedged(self):
+        assert "most likely" in upcheck._describe(403)
+
+
+class _FakeCurl:
+    def __init__(self):
+        self.options = {}
+
+    def setopt(self, option, value):
+        self.options[option] = value
+
+
+class _FakeSession:
+    """Stands in for curl_cffi.requests.Session, recording what it was asked to do."""
+
+    last = None
+
+    def __init__(self, result):
+        self.curl = _FakeCurl()
+        self.result = result
+        self.call = None
+        type(self).last = self
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def get(self, url, **kwargs):
+        self.call = {"url": url, **kwargs}
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+def _fake_curl_module(monkeypatch, result):
+    """Enable impersonation with a stubbed curl_cffi that returns `result`."""
+    monkeypatch.setattr(upcheck, "_IMPERSONATE", True)
+    monkeypatch.setattr(upcheck, "CurlOpt", type("CurlOpt", (), {"RESOLVE": 10203}))
+    module = type("curl_requests", (), {"Session": staticmethod(lambda: _FakeSession(result))})
+    monkeypatch.setattr(upcheck, "curl_requests", module)
+
+
+def _impersonate(raw="https://www.allianz.de/", ip="1.1.1.1"):
+    return asyncio.run(upcheck._impersonated_status(httpx.URL(raw), ip))
+
+
+class TestImpersonatedStatus:
+    def test_disabled_by_default(self, monkeypatch):
+        monkeypatch.setattr(upcheck, "_IMPERSONATE", False)
+        assert _impersonate() is None
+
+    def test_returns_none_when_curl_cffi_is_not_installed(self, monkeypatch):
+        monkeypatch.setattr(upcheck, "_IMPERSONATE", True)
+        monkeypatch.setattr(upcheck, "curl_requests", None)
+        assert _impersonate() is None
+
+    def test_returns_status_when_the_retry_gets_through(self, monkeypatch):
+        _fake_curl_module(monkeypatch, _response(200, {"content-type": "text/html"}, b"<h1>Hallo</h1>"))
+        assert _impersonate() == 200
+
+    def test_returns_none_when_the_retry_is_challenged_too(self, monkeypatch):
+        headers = {"content-type": "text/html", "cf-mitigated": "challenge"}
+        _fake_curl_module(monkeypatch, _response(403, headers, CHALLENGE_BODY))
+        assert _impersonate() is None
+
+    def test_a_failing_retry_is_swallowed(self, monkeypatch):
+        _fake_curl_module(monkeypatch, OSError("TLS handshake failed"))
+        assert _impersonate() is None
+
+    def test_pins_to_the_checked_ip_and_never_follows_redirects(self, monkeypatch):
+        _fake_curl_module(monkeypatch, _response(200, {"content-type": "text/html"}))
+        _impersonate("https://www.allianz.de/", "8.8.8.8")
+        session = _FakeSession.last
+        assert session.curl.options[upcheck.CurlOpt.RESOLVE] == [b"www.allianz.de:443:8.8.8.8"]
+        assert session.call["allow_redirects"] is False
+        assert session.call["impersonate"] == upcheck._IMPERSONATE_PROFILE
+
+    def test_pin_uses_the_explicit_port_when_there_is_one(self, monkeypatch):
+        _fake_curl_module(monkeypatch, _response(200, {"content-type": "text/html"}))
+        _impersonate("http://www.allianz.de:8080/", "8.8.8.8")
+        assert _FakeSession.last.curl.options[upcheck.CurlOpt.RESOLVE] == [b"www.allianz.de:8080:8.8.8.8"]
+
 
 class TestGeoFor:
     def test_empty_when_no_databases(self, monkeypatch):
@@ -300,6 +446,65 @@ class TestFetchHop:
 
 
 class TestRunCheck:
+    def test_challenge_page_reports_up_and_says_it_was_challenged(self, monkeypatch):
+        # The allianz.de shape: apex redirects to www, which serves a Cloudflare challenge.
+        _fake_dns(monkeypatch, {"allianz.de": ["1.1.1.1"], "www.allianz.de": ["8.8.8.8"]})
+
+        def handler(request):
+            if request.headers["host"] == "allianz.de":
+                return httpx.Response(301, headers={"Location": "https://www.allianz.de:443/"})
+            headers = {"content-type": "text/html; charset=UTF-8", "cf-mitigated": "challenge"}
+            return httpx.Response(403, headers=headers, content=CHALLENGE_BODY)
+
+        result = _run("allianz.de", handler)
+        assert result["status"] == "up"
+        assert result["http_status"] == 403
+        assert result["detail"] == (
+            "Site is up, but served a bot-protection challenge (403). A human browser will reach it fine."
+        )
+
+    def test_impersonated_retry_reports_what_it_got_through_to(self, monkeypatch):
+        _fake_dns(monkeypatch, {"allianz.de": ["1.1.1.1"]})
+        monkeypatch.setattr(upcheck, "_impersonated_status", _stub_impersonation(200))
+
+        result = _run("allianz.de", _challenge_handler)
+        assert result["status"] == "up"
+        assert result["http_status"] == 200
+        assert result["detail"] == (
+            "Site is up — bot protection challenged this check, but a browser-shaped retry got through (200)."
+        )
+
+    def test_failed_impersonation_leaves_the_challenge_result_alone(self, monkeypatch):
+        _fake_dns(monkeypatch, {"allianz.de": ["1.1.1.1"]})
+        monkeypatch.setattr(upcheck, "_impersonated_status", _stub_impersonation(None))
+
+        result = _run("allianz.de", _challenge_handler)
+        assert result["status"] == "up"
+        assert result["http_status"] == 403
+        assert "bot-protection challenge" in result["detail"]
+
+    def test_impersonated_redirect_is_not_treated_as_getting_through(self, monkeypatch):
+        # 302 means "go elsewhere", and that target has not been vetted.
+        _fake_dns(monkeypatch, {"allianz.de": ["1.1.1.1"]})
+        monkeypatch.setattr(upcheck, "_impersonated_status", _stub_impersonation(302))
+
+        result = _run("allianz.de", _challenge_handler)
+        assert result["http_status"] == 403
+        assert "bot-protection challenge" in result["detail"]
+
+    def test_impersonation_is_only_tried_on_a_challenge(self, monkeypatch):
+        _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"]})
+        calls = []
+
+        async def never(url, ip):
+            calls.append(url)
+            return 200
+
+        monkeypatch.setattr(upcheck, "_impersonated_status", never)
+        result = _run("spiegel.de", lambda request: httpx.Response(403))
+        assert result["http_status"] == 403
+        assert calls == []
+
     def test_follows_redirects_and_reports_host_names(self, monkeypatch):
         _fake_dns(monkeypatch, {"spiegel.de": ["1.1.1.1"], "www.spiegel.de": ["8.8.8.8"]})
         seen = []

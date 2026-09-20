@@ -6,6 +6,11 @@ services:
       - "127.0.0.1:8000:8000"
     networks:
       - internal
+    environment:
+      # Retry a detected bot-protection challenge once with a browser TLS
+      # fingerprint. Off by default: it succeeds only about half the time, so
+      # it changes the wording of a result that already reads "up" either way.
+      - UPCHECK_IMPERSONATE=${UPCHECK_IMPERSONATE:-0}
     volumes:
       - geoip_data:/app/geoip
     logging:

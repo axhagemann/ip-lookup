@@ -10,6 +10,7 @@ to the checked address, so DNS rebinding cannot swap in an internal target.
 
 import asyncio
 import ipaddress
+import os
 import re
 import socket
 import time
@@ -19,6 +20,13 @@ from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
 
 import geo
+
+try:  # Optional, and only imported when UPCHECK_IMPERSONATE=1 is set — see _impersonated_status.
+    from curl_cffi import CurlOpt
+    from curl_cffi import requests as curl_requests
+except ImportError:  # pragma: no cover - exercised by deployments without the extra installed
+    CurlOpt = None
+    curl_requests = None
 
 router = APIRouter()
 
@@ -51,6 +59,22 @@ _HEADERS = {
 # Codes meaning "a server answered and is healthy, it just refused this client".
 # The site is up; only our specific request was rejected.
 _REFUSED_CODES = {401, 403, 429}
+
+# Signals that a refusal is an anti-bot interstitial rather than the site's own
+# "no". Cloudflare sets cf-mitigated on every challenge it serves; its older
+# challenge pages only carry the interstitial title. Both are definitive —
+# unlike `server: cloudflare`, which a site's genuine 403 carries too.
+_CHALLENGE_TITLE = b"<title>just a moment"
+_CHALLENGE_SNIFF = 1024  # bytes of body worth looking at for the title
+
+# Off by default. When on, a detected challenge is retried once with a browser TLS
+# fingerprint (curl_cffi), because some sites answer that when they challenge httpx.
+# Measured against allianz.de it succeeds roughly half the time and only on the
+# newest profile, so it can add information but is never trusted to remove any:
+# a failed or challenged retry leaves the honest "challenged" result untouched.
+_IMPERSONATE = os.environ.get("UPCHECK_IMPERSONATE") == "1"
+_IMPERSONATE_PROFILE = os.environ.get("UPCHECK_IMPERSONATE_PROFILE", "chrome")
+_IMPERSONATE_TIMEOUT = 5.0  # seconds; deliberately below _TIMEOUT, this is a bonus check
 
 # Codes where a HEAD request is worth retrying as GET: some servers reject HEAD
 # outright (405/501), and some WAFs block HEAD as a scanner signature (403).
@@ -208,6 +232,50 @@ async def _fetch_hop(url: httpx.URL, ip: str, transport: httpx.AsyncBaseTranspor
         return response
 
 
+def _impersonated_get(url: httpx.URL, ip: str):
+    """One blocking, IP-pinned request carrying a browser TLS fingerprint.
+
+    curl_cffi's Session takes no `resolve=` argument, so the pin is set on the
+    handle directly. That is also why this is the sync Session and not
+    AsyncSession: the async one draws a handle from a pool per request, leaving
+    nothing to pin. Redirects are not followed — a redirect target has not been
+    through _parse_target()/_resolve_public(), and this must not become the path
+    that skips them.
+    """
+    host = url.raw_host.decode("ascii").removesuffix(".")
+    port = url.port or (443 if url.scheme == "https" else 80)
+    with curl_requests.Session() as session:
+        session.curl.setopt(CurlOpt.RESOLVE, [f"{host}:{port}:{ip}".encode()])
+        return session.get(
+            str(url),
+            impersonate=_IMPERSONATE_PROFILE,
+            timeout=_IMPERSONATE_TIMEOUT,
+            allow_redirects=False,
+        )
+
+
+async def _impersonated_status(url: httpx.URL, ip: str) -> int | None:
+    """Status code of a browser-shaped retry, or None if it told us nothing new.
+
+    None covers every "no": the flag is off, curl_cffi is not installed, the
+    request failed, or this attempt was challenged as well. Callers keep their
+    original result on None, so this can only ever add information.
+
+    Like the DNS executor call, the thread cannot be cancelled;
+    _IMPERSONATE_TIMEOUT keeps it well inside _CHECK_BUDGET.
+    """
+    if not _IMPERSONATE or curl_requests is None:
+        return None
+    try:
+        response = await asyncio.to_thread(_impersonated_get, url, ip)
+    except Exception:
+        # A bonus check must never turn a usable result into an error.
+        return None
+    if _is_challenge(response):
+        return None
+    return response.status_code
+
+
 def _geo_for(ips: list[str]) -> list[dict]:
     """Geolocate the resolved target IPs, in the same order as `ips`.
 
@@ -223,19 +291,41 @@ def _geo_for(ips: list[str]) -> list[dict]:
     return located
 
 
-def _classify(status_code: int) -> str:
+def _is_challenge(response) -> bool:
+    """Whether this response is an anti-bot challenge page rather than the site.
+
+    Takes any response exposing .headers and .content, so it reads an httpx and a
+    curl_cffi response alike.
+    """
+    if "cf-mitigated" in response.headers:
+        return True
+    if "html" not in response.headers.get("content-type", ""):
+        return False
+    # A HEAD has no body to sniff; a challenge names itself in the header above.
+    return _CHALLENGE_TITLE in response.content[:_CHALLENGE_SNIFF].lower()
+
+
+def _classify(status_code: int, challenged: bool = False) -> str:
     if status_code < 400:
         return "up"
-    if status_code in _REFUSED_CODES:
+    if challenged or status_code in _REFUSED_CODES:
         # The server responded quickly and correctly — it is reachable and
-        # healthy. It simply declined to serve this particular client.
+        # healthy. It simply declined to serve this particular client. A
+        # challenge says the same thing whatever code it arrives under (older
+        # Cloudflare interstitials used 503), so it outranks the code.
         return "up"
     if status_code < 500:
         return "degraded"
     return "down"
 
 
-def _describe(status_code: int) -> str:
+def _describe_bypassed(status_code: int) -> str:
+    return f"Site is up — bot protection challenged this check, but a browser-shaped retry got through ({status_code})."
+
+
+def _describe(status_code: int, challenged: bool = False) -> str:
+    if challenged:
+        return f"Site is up, but served a bot-protection challenge ({status_code}). A human browser will reach it fine."
     if status_code in _REFUSED_CODES:
         return (
             f"Site is up, but refused this check ({status_code}) — most likely "
@@ -281,11 +371,22 @@ async def _http_check(url: httpx.URL, ips: list[str], transport: httpx.AsyncBase
             detail = "Redirect target does not resolve"
             return {"status": "down", "stage": "dns", "detail": detail, "redirects": redirects}
 
+    challenged = _is_challenge(response)
+    status_code = response.status_code
+    detail = _describe(status_code, challenged)
+    if challenged:
+        # Only a direct answer counts as getting through. A 3xx would mean "go
+        # somewhere else", and this path deliberately does not follow redirects.
+        bypassed = await _impersonated_status(url, ips[0])
+        if bypassed is not None and bypassed < 300:
+            status_code, challenged = bypassed, False
+            detail = _describe_bypassed(bypassed)
+
     return {
-        "status": _classify(response.status_code),
+        "status": _classify(status_code, challenged),
         "stage": "done",
-        "detail": _describe(response.status_code),
-        "http_status": response.status_code,
+        "detail": detail,
+        "http_status": status_code,
         "response_time_ms": round((time.monotonic() - start) * 1000),
         "final_url": str(url),
         "redirects": redirects,

@@ -2,3 +2,7 @@ fastapi
 uvicorn[standard]
 geoip2
 httpx
+# Only used when UPCHECK_IMPERSONATE=1 (see upcheck.py). upcheck imports it
+# defensively, so removing this line to keep libcurl out of the image is safe —
+# the flag then simply does nothing.
+curl_cffi
