@@ -56,6 +56,9 @@ _REFUSED_CODES = {401, 403, 429}
 # outright (405/501), and some WAFs block HEAD as a scanner signature (403).
 _RETRY_AS_GET = {403, 405, 501}
 
+# A connect-level failure is the target's answer, not HEAD's — see _fetch_hop.
+_CONNECT_ERRORS = (httpx.ConnectError, httpx.ConnectTimeout)
+
 
 def _normalize_url(raw: str) -> str | None:
     """Return a normalized http(s) URL, or None if the input is unusable."""
@@ -161,6 +164,46 @@ async def _resolve_public(url: httpx.URL) -> list[str]:
     if not all(_is_public(ipaddress.ip_address(ip)) for ip in ips):
         raise NotPublic
     return sorted(ips, key=lambda ip: ":" in ip)
+
+
+def _pinned(url: httpx.URL, ip: str) -> tuple[httpx.URL, dict[str, str], dict[str, str]]:
+    host = url.raw_host.decode("ascii")
+    if _is_ip(host):
+        host_header = f"[{host}]" if ":" in host else host
+        extensions = {}
+    else:
+        host_header = host.removesuffix(".")
+        extensions = {"sni_hostname": host_header} if url.scheme == "https" else {}
+    if url.port is not None:
+        host_header += f":{url.port}"
+    return url.copy_with(host=ip), {"Host": host_header}, extensions
+
+
+async def _fetch_hop(url: httpx.URL, ip: str, transport: httpx.AsyncBaseTransport | None = None) -> httpx.Response:
+    """HEAD first (cheap), fall back to GET when HEAD is rejected or blocked.
+
+    Only the HEAD is retried. A connect failure is the target's answer, not HEAD's:
+    retrying it would spend a second _TIMEOUT of the check budget and turn
+    "Server unreachable" into "Check took too long". A failing GET is final too.
+    """
+    target, headers, extensions = _pinned(url, ip)
+    # Fresh client per hop: httpcore pools by scheme+IP+port, so reuse could skip this hostname's TLS check.
+    async with httpx.AsyncClient(
+        transport=transport,
+        timeout=_TIMEOUT,
+        follow_redirects=False,
+        trust_env=False,
+        headers=_HEADERS,
+    ) as client:
+        try:
+            response = await client.head(target, headers=headers, extensions=extensions)
+        except _CONNECT_ERRORS:
+            raise
+        except httpx.HTTPError:
+            return await client.get(target, headers=headers, extensions=extensions)
+        if response.status_code in _RETRY_AS_GET:
+            response = await client.get(target, headers=headers, extensions=extensions)
+        return response
 
 
 def _guard_ssrf(host: str) -> tuple[list[str], str | None]:

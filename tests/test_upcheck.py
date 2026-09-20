@@ -30,6 +30,16 @@ def _resolve(raw):
     return asyncio.run(upcheck._resolve_public(httpx.URL(raw)))
 
 
+def _recording(status=200, headers=None):
+    seen = []
+
+    def handler(request):
+        seen.append(request)
+        return httpx.Response(status, headers=headers)
+
+    return httpx.MockTransport(handler), seen
+
+
 class TestNormalizeUrl:
     def test_adds_https_when_scheme_missing(self):
         assert upcheck._normalize_url("example.com") == "https://example.com"
@@ -227,3 +237,100 @@ class TestResolvePublic:
         _fake_dns(monkeypatch, {"spiegel.de": lambda _count: time.sleep(0.3) or ["1.1.1.1"]})
         with pytest.raises(upcheck.Unresolvable):
             _resolve("https://spiegel.de")
+
+
+class TestFetchHop:
+    def _fetch(self, raw, ip, transport):
+        return asyncio.run(upcheck._fetch_hop(httpx.URL(raw), ip, transport))
+
+    def test_connects_to_checked_ip_with_real_host_name(self):
+        transport, seen = _recording()
+        response = self._fetch("https://www.spiegel.de:8443/politik/?x=1", "1.1.1.1", transport)
+        assert response.status_code == 200
+        [request] = seen
+        assert request.method == "HEAD"
+        assert str(request.url) == "https://1.1.1.1:8443/politik/?x=1"
+        assert request.headers["host"] == "www.spiegel.de:8443"
+        assert request.extensions["sni_hostname"] == "www.spiegel.de"
+
+    def test_ipv6_address_is_bracketed(self):
+        transport, seen = _recording()
+        self._fetch("https://www.spiegel.de/", "2606:4700:4700::1111", transport)
+        [request] = seen
+        assert str(request.url) == "https://[2606:4700:4700::1111]/"
+        assert request.headers["host"] == "www.spiegel.de"
+
+    def test_ip_literal_host_sends_no_tls_name(self):
+        transport, seen = _recording()
+        self._fetch("https://1.1.1.1/", "1.1.1.1", transport)
+        [request] = seen
+        assert request.headers["host"] == "1.1.1.1"
+        assert "sni_hostname" not in request.extensions
+
+    def test_plain_http_sends_no_tls_name(self):
+        transport, seen = _recording()
+        self._fetch("http://spiegel.de/", "1.1.1.1", transport)
+        [request] = seen
+        assert request.headers["host"] == "spiegel.de"
+        assert "sni_hostname" not in request.extensions
+
+    def test_trailing_dot_is_dropped_from_host_header_and_tls_name(self):
+        transport, seen = _recording()
+        self._fetch("https://spiegel.de./", "1.1.1.1", transport)
+        [request] = seen
+        assert request.headers["host"] == "spiegel.de"
+        assert request.extensions["sni_hostname"] == "spiegel.de"
+
+    def test_rejected_head_is_retried_as_get_on_the_same_ip(self):
+        seen = []
+
+        def handler(request):
+            seen.append(request)
+            return httpx.Response(405 if request.method == "HEAD" else 200)
+
+        response = self._fetch("https://spiegel.de/", "1.1.1.1", httpx.MockTransport(handler))
+        assert response.status_code == 200
+        assert [(r.method, r.url.host) for r in seen] == [("HEAD", "1.1.1.1"), ("GET", "1.1.1.1")]
+
+    def test_does_not_follow_redirects(self):
+        transport, seen = _recording(302, {"Location": "http://127.0.0.1/"})
+        response = self._fetch("https://spiegel.de/", "1.1.1.1", transport)
+        assert response.status_code == 302
+        assert len(seen) == 1
+
+    def test_connect_failure_is_not_retried_as_get(self):
+        seen = []
+
+        def handler(request):
+            seen.append(request)
+            raise httpx.ConnectError("refused", request=request)
+
+        with pytest.raises(httpx.ConnectError):
+            self._fetch("https://spiegel.de/", "1.1.1.1", httpx.MockTransport(handler))
+        assert [r.method for r in seen] == ["HEAD"]
+
+    def test_head_protocol_error_still_falls_back_to_get(self):
+        seen = []
+
+        def handler(request):
+            seen.append(request)
+            if request.method == "HEAD":
+                raise httpx.RemoteProtocolError("bad line", request=request)
+            return httpx.Response(200)
+
+        response = self._fetch("https://spiegel.de/", "1.1.1.1", httpx.MockTransport(handler))
+        assert response.status_code == 200
+        assert [r.method for r in seen] == ["HEAD", "GET"]
+
+    def test_failing_get_retry_is_not_repeated(self):
+        seen = []
+
+        def handler(request):
+            seen.append(request)
+            if request.method == "HEAD":
+                return httpx.Response(405)
+            raise httpx.ReadError("boom", request=request)
+
+        with pytest.raises(httpx.ReadError):
+            self._fetch("https://spiegel.de/", "1.1.1.1", httpx.MockTransport(handler))
+        assert [r.method for r in seen] == ["HEAD", "GET"]
