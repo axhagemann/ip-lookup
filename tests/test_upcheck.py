@@ -3,6 +3,7 @@
 import asyncio
 import socket
 import time
+from pathlib import Path
 
 import httpx
 import pytest
@@ -38,6 +39,9 @@ def _recording(status=200, headers=None):
         return httpx.Response(status, headers=headers)
 
     return httpx.MockTransport(handler), seen
+
+
+UP_HTML = Path(__file__).resolve().parent.parent / "static" / "up.html"
 
 
 def _run(raw, handler):
@@ -452,3 +456,18 @@ class TestRunCheck:
             "detail": "Port 22 isn't allowed — only 80, 443, 8080 and 8443",
         }
         assert calls == []
+
+
+class TestUpPage:
+    html = UP_HTML.read_text(encoding="utf-8")
+
+    def test_input_is_length_limited(self):
+        assert 'maxlength="2048"' in self.html
+
+    def test_knows_blocked_status_and_redirect_stage(self):
+        assert 'blocked: "Can\'t be checked"' in self.html
+        assert 'redirect: "Redirect"' in self.html
+        assert ".status-blocked" in self.html
+
+    def test_server_text_is_never_injected_as_html(self):
+        assert "innerHTML" not in self.html

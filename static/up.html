@@ -77,7 +77,8 @@
     .status-up { color: #7fc98a; }
     .status-degraded { color: #d6b25e; }
     .status-down { color: #d67e7e; }
-    .status-invalid { color: #c0c0c0; }
+    .status-invalid,
+    .status-blocked { color: #c0c0c0; }
 
     .status-note {
       font-size: 0.85rem;
@@ -161,7 +162,7 @@
     <div class="panel">
       <div class="input-row">
         <input type="text" id="url" placeholder="example.com"
-               autocomplete="off" spellcheck="false"
+               maxlength="2048" autocomplete="off" spellcheck="false"
                aria-label="URL to check" />
         <button id="check">Check</button>
       </div>
@@ -202,6 +203,7 @@
       degraded: "Reachable, but erroring",
       down: "Down",
       invalid: "Invalid input",
+      blocked: "Can't be checked",
     };
 
     const STAGE_LABELS = {
@@ -209,6 +211,7 @@
       connect: "TCP connection",
       http: "HTTP request",
       input: "Input validation",
+      redirect: "Redirect",
     };
 
     function addField(label, value) {
