@@ -17,7 +17,7 @@ CSS = (STATIC / "style.css").read_text(encoding="utf-8")
 
 # Pages already moved to the new design system. Grows task by task until it
 # is every page on disk (see test_every_page_is_themed, added last).
-THEMED: list[str] = ["datenschutz.html", "getip.html", "impressum.html", "index.html", "privacy.html"]
+THEMED: list[str] = ["cidr.html", "datenschutz.html", "getip.html", "impressum.html", "index.html", "privacy.html"]
 
 THEMED_TOKENS = (
     "--bg",
@@ -193,3 +193,21 @@ def test_getip_shows_visible_loading_text_and_keeps_live_regions():
     assert 'btn.className = "btn btn-secondary copy-btn";' in html
     # The visible "Loading…" text is the label now; an aria-label would hide it.
     assert 'setAttribute("aria-label", "Loading")' not in html
+
+
+def test_cidr_keeps_script_hooks_and_labels():
+    html = page_html("cidr.html")
+    for hook in (
+        'id="cidr-form"',
+        'id="ip-input"',
+        'id="prefix-input"',
+        'id="error-msg"',
+        'id="result"',
+        'id="result-start"',
+        'id="result-end"',
+    ):
+        assert hook in html
+    assert '<label for="ip-input">' in html
+    assert '<label for="prefix-input">' in html
+    assert '<p class="error" id="error-msg" role="alert"></p>' in html
+    assert '<script src="/cidr-logic.js"></script>' in html
