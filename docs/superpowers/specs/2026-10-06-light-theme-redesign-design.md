@@ -36,16 +36,16 @@ Defined once in `static/style.css`. Ratios computed with the WCAG relative-lumin
 | `--border-strong` | input/button boundaries (≥3:1) | `#7d8590` (3.7 / 3.5) | `#6b7380` (3.6 / 4.0) |
 | `--accent` | links, focus ring, primary button bg | `#1d4ed8` (6.7 / 6.3) | `#7aa7ff` (7.3 / 7.9) |
 | `--on-accent` | text on primary button | `#ffffff` (6.7) | `#0f1115` (7.9) |
-| `--ok` | status "up" | `#1a7f37` (5.1 / 4.7) | `#3fb950` (6.9 / 7.4) |
-| `--warn` | status "blocked"/warning | `#9a6700` (4.9 / 4.5) | `#d29922` (6.9 / 7.5) |
-| `--err` | status "down", errors | `#cf222e` (5.4 / 5.0) | `#ff6b61` (6.2 / 6.8) |
+| `--ok` | status "up" | `#116329` (6.6 on tint) | `#3fb950` (6.9 / 7.4) |
+| `--warn` | status "degraded" | `#7d4e00` (6.6 on tint) | `#d29922` (6.9 / 7.5) |
+| `--err` | status "down", errors | `#a40e26` (6.9 on tint) | `#ff6b61` (6.2 / 6.8) |
 
 Usage rules that the palette alone does not guarantee:
 
 1. **Inline links in running text are underlined.** Accent vs body text is only 2.5:1 (light) / 1.9:1 (dark), below the 3:1 needed for color-only link identification (WCAG 1.4.1). Nav, top-bar, and footer links may omit the underline (identified by position).
 2. **`--border` never alone defines an input's or control's boundary** (≈1.3:1). Inputs and secondary buttons use `--border-strong`.
 3. **Status is never conveyed by color alone** — the status text ("Up", "Down", "Blocked", stage name) always appears.
-4. Light `--warn` text sits on `--surface` only (4.87:1), not directly on `--bg` (4.54:1, too close to the limit).
+4. Light status colors were deepened from a first draft (`#1a7f37`/`#9a6700`/`#cf222e`) that only reached 4.52–4.67:1 on the status-pill tints. Status tints: `--ok-bg #dafbe1/#12261a`, `--warn-bg #fff8c5/#2b2111`, `--err-bg #ffebe9/#2d1416`, `--neutral-bg #eff2f5/#222731`.
 5. No hex values outside the token definitions in `style.css`.
 
 ## 2. Typography
