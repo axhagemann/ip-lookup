@@ -17,7 +17,7 @@ CSS = (STATIC / "style.css").read_text(encoding="utf-8")
 
 # Pages already moved to the new design system. Grows task by task until it
 # is every page on disk (see test_every_page_is_themed, added last).
-THEMED: list[str] = ["datenschutz.html", "impressum.html", "index.html", "privacy.html"]
+THEMED: list[str] = ["datenschutz.html", "getip.html", "impressum.html", "index.html", "privacy.html"]
 
 THEMED_TOKENS = (
     "--bg",
@@ -183,3 +183,13 @@ def test_german_pages_label_the_toggle_in_german():
 def test_privacy_opt_out_uses_shared_button():
     for name in ("datenschutz.html", "privacy.html"):
         assert '<button type="button" id="optout-toggle" class="btn btn-secondary">' in page_html(name)
+
+
+def test_getip_shows_visible_loading_text_and_keeps_live_regions():
+    html = page_html("getip.html")
+    for v in ("v4", "v6"):
+        assert f'<div class="value loading" id="ip-{v}" aria-live="polite" aria-atomic="true">Loading…</div>' in html
+        assert f'<div id="geo-{v}" aria-live="polite"></div>' in html
+    assert 'btn.className = "btn btn-secondary copy-btn";' in html
+    # The visible "Loading…" text is the label now; an aria-label would hide it.
+    assert 'setAttribute("aria-label", "Loading")' not in html
