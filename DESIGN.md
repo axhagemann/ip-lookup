@@ -1,188 +1,122 @@
 ---
-name: ipinfo
-description: A self-hosted, ad-free IPv4/IPv6 lookup tool with a quiet terminal aesthetic
+name: alexander-hagemann.de tools
+description: Self-hosted, ad-free network tools with a light-first, system-native look
 colors:
-  surface-bg: "#000000"
-  ink-bright: "#ffffff"
-  ink-primary: "#e0e0e0"
-  ink-muted: "#c0c0c0"
-  ink-soft: "#d0d0d0"
-  border-faint: "#1a1a1a"
-  border-subtle: "#1e1e1e"
-  border-default: "#222222"
-  border-strong: "#666666"
-  border-hover: "#888888"
+  light:
+    bg: "#f6f7f9"
+    surface: "#ffffff"
+    text: "#1a1d21"
+    text-muted: "#57606a"
+    border: "#d8dee4"
+    border-strong: "#7d8590"
+    accent: "#1d4ed8"
+    accent-hover: "#1e40af"
+    on-accent: "#ffffff"
+    ok: "#116329"
+    ok-bg: "#dafbe1"
+    warn: "#7d4e00"
+    warn-bg: "#fff8c5"
+    err: "#a40e26"
+    err-bg: "#ffebe9"
+    neutral-bg: "#eff2f5"
+  dark:
+    bg: "#0f1115"
+    surface: "#171a21"
+    text: "#e6e8eb"
+    text-muted: "#9aa4b2"
+    border: "#2a2f38"
+    border-strong: "#6b7380"
+    accent: "#7aa7ff"
+    accent-hover: "#a5c3ff"
+    on-accent: "#0f1115"
+    ok: "#3fb950"
+    ok-bg: "#12261a"
+    warn: "#d29922"
+    warn-bg: "#2b2111"
+    err: "#ff6b61"
+    err-bg: "#2d1416"
+    neutral-bg: "#222731"
 typography:
-  value:
-    fontFamily: "'Courier New', Courier, monospace"
-    fontSize: "1.5rem"
-    fontWeight: 700
-    lineHeight: 1.2
-    letterSpacing: "0.02em"
-  label:
-    fontFamily: "'Courier New', Courier, monospace"
-    fontSize: "0.85rem"
-    fontWeight: 400
-    lineHeight: 1.4
-    letterSpacing: "0.2em"
-  body:
-    fontFamily: "'Courier New', Courier, monospace"
-    fontSize: "0.85rem"
-    fontWeight: 400
-    lineHeight: 1.7
-    letterSpacing: "normal"
-  caption:
-    fontFamily: "'Courier New', Courier, monospace"
-    fontSize: "0.75rem"
-    fontWeight: 400
-    lineHeight: 1.6
-    letterSpacing: "0.1em"
+  sans: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+  mono: 'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace'
 rounded:
-  none: "0px"
-spacing:
-  xs: "0.25rem"
-  sm: "0.5rem"
-  md: "1rem"
-  lg: "1.5rem"
-  xl: "2rem"
-  2xl: "3rem"
-components:
-  button-copy:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink-muted}"
-    rounded: "{rounded.none}"
-    padding: "0.25rem 0.65rem"
-  button-copy-hover:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink-primary}"
-    rounded: "{rounded.none}"
-    padding: "0.25rem 0.65rem"
-  button-copy-copied:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink-bright}"
-    rounded: "{rounded.none}"
-    padding: "0.25rem 0.65rem"
-  card:
-    backgroundColor: "{colors.surface-bg}"
-    textColor: "{colors.ink-soft}"
-    rounded: "{rounded.none}"
-    padding: "1.5rem"
-  badge:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink-primary}"
-    rounded: "{rounded.none}"
-    padding: "0.15rem 0.45rem"
-  tool-link:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink-primary}"
-    rounded: "{rounded.none}"
-    padding: "1.25rem 1.5rem"
+  sm: "6px"
+  md: "8px"
 ---
 
-# Design System: ipinfo
+# Design System
 
 ## 1. Overview
 
-**Creative North Star: "The Quiet Terminal"**
+A calm, conventional utility look: light gray page, white cards, one blue accent, the visitor's own system font. It follows the OS light/dark setting, and a toggle in the top bar flips the current page view. The site still refuses everything the ad-heavy "what's my ip" sites do — no banners, no trackers, no filler.
 
-A console that only speaks when it has something precise to say. The system is pure black-on-gray monospace, built from borders instead of surfaces and silence instead of ornament — every screen reads like a `//`-commented terminal session rather than a product page. Density is low, contrast is high, and the only motion is a blinking cursor while data loads.
+## 2. Color
 
-This explicitly rejects the ad-heavy "what's my ip" sites the project positions itself against: no banners, no gradient CTAs, no filler copy competing for attention. It also rejects generic SaaS chrome — no rounded cards, no shadows, no color for color's sake. Right now the palette is monochrome by choice, not by omission: a single retro-terminal accent (phosphor green or amber) is planned for a future pass but deliberately not yet introduced, so this system currently documents a grayscale-only state.
+All colors are CSS custom properties in `static/style.css`. Hex values appear only on those token lines; page `<style>` blocks use `var(--…)` only (enforced by `tests/test_theme.py`).
 
-**Key Characteristics:**
-- Pure black background, grayscale ink ramp, zero hue
-- Square corners everywhere — no border-radius in the system
-- Borders substitute for elevation; there are no shadows
-- One monospace family end to end, no display/body pairing
-- The `// ` prefix reads as a terminal comment marker, used on every heading
+Theme wiring: light tokens on `:root`; dark tokens under `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) }` and again under `:root[data-theme="dark"]`. `static/theme.js` sets `data-theme` on click.
 
-## 2. Colors
+Contrast (WCAG 2.1 AA, computed with the WCAG relative-luminance formula):
 
-Strictly grayscale on black today — the system uses lightness alone to build hierarchy, with no hue anywhere in the interface.
+| Pair | Light | Dark |
+|---|---|---|
+| text on surface / bg | 16.9 / 15.8 | 14.2 / 15.4 |
+| text-muted on surface / bg | 6.4 / 6.0 | 6.9 / 7.5 |
+| accent on surface / bg | 6.7 / 6.3 | 7.3 / 7.9 |
+| on-accent on accent / accent-hover | 6.7 / 8.7 | 7.9 / 10.7 |
+| ok / warn / err on their tint | 6.6 / 6.6 / 6.9 | 6.3 / 6.3 / 6.2 |
+| border-strong on surface / bg / neutral-bg | 3.7 / 3.5 / 3.3 | 3.6 / 4.0 / 3.1 |
 
-### Neutral
-- **Void Black** (`#000000`): the only background value in the system — body, cards, and buttons all sit directly on it.
-- **Bright White** (`#ffffff`): reserved for the most important number on any screen (the resolved IP value) and for "confirmed" states like a copied button.
-- **Primary Ink** (`#e0e0e0`): default text color — headings, nav links, primary copy.
-- **Muted Ink** (`#c0c0c0`): secondary text — descriptions, uppercase labels, inactive links.
-- **Soft Ink** (`#d0d0d0`): tertiary body copy inside cards (legal text, geo values).
-- **Border Faint** (`#1a1a1a`): the quietest divider, used only under card headers.
-- **Border Subtle** (`#1e1e1e`): legal-page card outline.
-- **Border Default** (`#222222`): the standard card and tool-link outline.
-- **Border Strong** (`#666666`): interactive borders at rest (buttons, inline `<code>`). Tuned up from an earlier `#555555` to clear the WCAG 3:1 non-text contrast minimum against pure black (`#555555` measured ≈2.82:1).
-- **Border Hover** (`#888888`): the one-step-brighter state a border moves to on hover.
-
-### Named Rules
-**The No-Hue Rule.** Every color in this system is desaturated gray or pure black/white. Nothing is tinted toward warm or cool. If a color swatch has any chroma, it doesn't belong here — yet.
-
-**The Reserved Accent Rule.** PRODUCT.md commits to exactly one future retro-terminal accent (phosphor green or amber), used sparingly (focus states, the loading cursor, one label). It does not exist in the codebase today. Do not introduce an accent color piecemeal — it lands as one deliberate decision, not a gradual creep.
+Rules:
+- **Inline links are underlined.** Accent vs body text is only 2.5:1 (light) / 1.9:1 (dark), so color alone can't identify a link (1.4.1). Top-bar and footer links may drop the underline; their position identifies them.
+- **`--border` is decorative** (~1.3:1). Inputs and secondary buttons use `--border-strong`.
+- **Status is never color-only.** The pill always carries text ("Up", "Down", …).
+- Any new token pairing gets its ratio computed and added to the table above.
 
 ## 3. Typography
 
-**Display/Value Font:** "Courier New", Courier, monospace
-**Body Font:** "Courier New", Courier, monospace
-**Label/Mono Font:** "Courier New", Courier, monospace (the entire system is one family)
+System fonts only — no `@font-face`, no font files, no Google Fonts. Sans for all UI; mono only for technical values (IP addresses, CIDR results, URLs, `<code>`, IP/URL inputs).
 
-**Character:** A single monospace typeface carries every role — headings, body, labels, and data — so hierarchy comes entirely from size, weight, tracking, and case rather than a font pairing.
+| Role | Spec |
+|---|---|
+| h1 | 1.75rem / 650, sentence case |
+| h2 | 1.125rem / 600 |
+| Body | 1rem / 400, line-height 1.6, max ~65ch |
+| Label / meta | 0.875rem / 500, muted |
+| Value | 1.5rem / 600 mono, tabular numbers, wraps anywhere |
+| Small | 0.8125rem (footer, notes) |
 
-### Hierarchy
-- **Value** (700, 1.5rem, line-height 1.2): the resolved IP address itself — the largest, brightest text on the page, and the only place bold white appears.
-- **Heading/Label** (400, 0.85rem, line-height 1.4, letter-spacing 0.2em, uppercase): page titles, prefixed with `// `. Functions as both the page's h1 and a terminal-comment-style label — deliberately small and quiet rather than a hero display size.
-- **Body** (400, 0.85rem, line-height 1.7): descriptions and explanatory copy, centered, capped near 520px measure.
-- **Caption/Meta** (400, 0.75rem, line-height 1.6, letter-spacing 0.1em, uppercase): geo field labels, footer links, API hints — the smallest, quietest text in the system.
+All sizes in `rem`; no fixed-height text boxes; long IPv6 values wrap at 320px.
 
-### Named Rules
-**The Comment-Marker Rule.** Every heading is prefixed with `// ` (rendered `aria-hidden` so it doesn't pollute the accessible name). It's the one recurring typographic signature in the system — don't drop it, and don't add a second decorative prefix alongside it.
+## 4. Shape and depth
 
-## 4. Elevation
-
-There are no shadows anywhere in the system. Depth and grouping are conveyed entirely through 1px borders on a flat black field — a card is a rectangle with an outline, not a raised surface.
-
-### Named Rules
-**The Flat-By-Default Rule.** Surfaces never lift, blur, or cast shadow. If something needs to read as "grouped," give it a border (`border-default` or `border-subtle`); if it needs to read as "interactive," change the border color on hover/focus. Never add `box-shadow`.
+Cards: 8px radius, 1px `--border`, `--surface` background on the `--bg` page, `0 1px 2px rgb(0 0 0 / .05)` shadow in light and none in dark (the lighter surface carries depth). Controls: 6px radius. No gradients, no hover lift.
 
 ## 5. Components
 
-Buttons, cards, and badges all share one instinct: quiet and functional, no decoration beyond what a state requires.
+All in `static/style.css`:
 
-### Buttons
-- **Shape:** square corners, no radius (`0px`) — matches the system-wide no-rounding rule.
-- **Primary (Copy IP):** transparent background, 1px `border-strong` (#666), `ink-muted` text, 0.25rem 0.65rem padding, 0.75rem monospace uppercase-free label.
-- **Hover:** border shifts to `border-hover` (#888), text brightens to `ink-primary` (#e0e0e0). Transition on `border-color` and `color`, 0.1s.
-- **Copied (confirmed state):** border and text both jump to `ink-bright` (#fff) — the only place a button turns fully white.
-- **Failed (clipboard write rejected):** border switches to a dashed `border-hover` (#888) and text brightens to `ink-primary` (#e0e0e0) with the label reading "Copy failed" — distinct from the solid-white "Copied!" confirmation so success and failure are never confusable.
+- **Top bar** (`.topbar`): site name linking home, theme toggle. Every page has it; there are no per-page back links.
+- **Theme toggle** (`.theme-toggle`): `aria-pressed` + fixed visually-hidden name ("Dark mode" / "Dunkelmodus"), moon/sun SVG icons, 44×44px, `hidden` until `theme.js` runs. Override lasts for the current page view; nothing is stored.
+- **Card** (`.card`, `.card-header`), **tool tile** (`.card.tool-link`).
+- **Buttons**: `.btn.btn-primary` (accent fill), `.btn.btn-secondary` (surface + strong border). Min height 44px.
+- **Inputs**: always with a visible `<label>`; `input.mono` for addresses and URLs.
+- **Error** (`.error`): err text on err tint, announced via `role="alert"`.
+- **Result list** (`.result-list`): label/value two-column `dl`, stacking below 480px.
+- **Status pill** (`.status .status-up|degraded|down|invalid|blocked`).
+- **Loading** (`.loading`): visible "Loading…" text at full contrast plus a pulsing decorative dot; static under `prefers-reduced-motion`.
+- **Footer** (`.site-footer`): legal links, normal flow (never fixed).
+- **Legal prose** (`main.prose`): 65ch column, sections inside one card.
 
-### Cards
-- **Corner Style:** square (0px radius).
-- **Background:** none — cards sit directly on `surface-bg` (#000); only the border differentiates them from the page.
-- **Shadow Strategy:** none — see Elevation.
-- **Border:** 1px `border-default` (getip lookup cards) or `border-subtle` (legal-page card); `border-faint` for the divider under a card's header.
-- **Internal Padding:** 1.5rem (lookup cards), 2rem (legal-page card).
+## 6. Do's and don'ts
 
-### Badges
-- **Style:** inline-block, 1px border matching the ink color it names (`ink-primary` for IPv4, `ink-muted` for IPv6), 0.15rem 0.45rem padding, 0.75rem bold monospace (aligned to the Caption/Meta type step), no background fill.
-- **State:** static — badges label a card, they don't have interactive states.
+Do:
+- Use tokens for every color; add new tokens to all three theme blocks.
+- Keep the skip link, `aria-live` regions, focus ring and reduced-motion fallbacks on every page.
+- Add the top bar, footer, color-scheme meta and deferred `theme.js` to any new page (`tests/test_theme.py` checks it).
 
-### Navigation / Links
-- **Tool links (index page):** full-bleed 1px `border-default` block, `ink-primary` heading + `ink-muted` description inside; border brightens to `border-hover` on hover. No background change.
-- **Footer links:** bare text, 0.75rem uppercase tracked, `ink-muted` at rest, `ink-bright` on hover, no underline, no border.
-- **Back link:** same uppercase-tracked treatment as footer links, with an `aria-hidden` `← ` prefix mirroring the `// ` heading convention.
-
-### Loading State (signature pattern)
-While a value is in flight, its container gets a trailing blinking cursor (`::after { content: "_" }`, 1s step-end infinite) instead of a spinner — reinforcing the terminal metaphor. Disabled under `prefers-reduced-motion: reduce` in favor of a static cursor.
-
-## 6. Do's and Don'ts
-
-### Do:
-- **Do** keep every corner square — `border-radius` is `0px` everywhere in this system, no exceptions.
-- **Do** use borders, not shadows, for grouping and elevation.
-- **Do** keep the `// ` (heading) and `← ` (back link) `aria-hidden` comment-marker prefixes when adding new pages.
-- **Do** pair any new loading state with a `prefers-reduced-motion: reduce` fallback, matching the existing blinking-cursor pattern.
-- **Do** treat the IP/value text as the one place bold white (`#ffffff`) appears — it should stay the brightest thing on any screen.
-
-### Don't:
-- **Don't** build ad-heavy "what's my ip" site patterns: no banner ads, no trackers, no SEO filler copy around the lookup.
-- **Don't** introduce a rounded corner, a shadow, or a gradient anywhere — all three are absent by design, not by oversight.
-- **Don't** add color piecemeal. The system is grayscale-only until the single reserved retro accent (phosphor green or amber) is introduced as one deliberate decision across the whole site.
-- **Don't** pair a second display font with the existing monospace — the one-family system is the point, not a placeholder.
-- **Don't** use a side-stripe border (`border-left`/`border-right` as a colored accent) — every border in this system is a full rectangle outline.
+Don't:
+- Load web fonts or any third-party asset.
+- Persist the theme choice (no `localStorage`, cookies, etc.).
+- Animate text opacity, add hover lifts, gradients, or more accent colors.
+- Use color as the only signal for links or status.

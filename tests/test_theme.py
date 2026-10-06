@@ -15,17 +15,8 @@ ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / "static"
 CSS = (STATIC / "style.css").read_text(encoding="utf-8")
 
-# Pages already moved to the new design system. Grows task by task until it
-# is every page on disk (see test_every_page_is_themed, added last).
-THEMED: list[str] = [
-    "cidr.html",
-    "datenschutz.html",
-    "getip.html",
-    "impressum.html",
-    "index.html",
-    "privacy.html",
-    "up.html",
-]
+# Every page is on the design system; a new page is covered automatically.
+THEMED: list[str] = sorted(p.name for p in STATIC.glob("*.html"))
 
 THEMED_TOKENS = (
     "--bg",
@@ -227,3 +218,7 @@ def test_up_has_visible_label_and_status_pill():
     assert 'aria-label="URL to check"' not in html  # replaced by the visible label
     assert 'badge.className = "status status-" + status;' in html
     assert '<div class="result" id="result" aria-live="polite" hidden>' in html
+
+
+def test_every_page_is_themed():
+    assert len(THEMED) == 7

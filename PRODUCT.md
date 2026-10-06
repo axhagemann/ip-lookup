@@ -22,7 +22,7 @@ It resolves IPv4 and IPv6 independently and shows both at once — dual-stack pr
 
 ## Brand Personality
 
-Minimal, technical, precise at the core — the quiet, terminal-flavored look already in place. Retro-hacker touches (a prompt glyph, a single accent color, a cursor blink) are seasoning layered on top of that calm foundation, not a costume. Confidence comes from accuracy and restraint, not decoration.
+Calm, conventional and precise. The site should feel like a well-made native utility: light by default, follows the visitor's light/dark preference, uses their system font, and gets out of the way. Confidence comes from accuracy and restraint, not decoration.
 
 ## Anti-references
 
@@ -31,11 +31,11 @@ Ad-heavy "what's my ip" sites: banner ads, trackers, and SEO filler text wrapped
 ## Design Principles
 
 - Quiet confidence: precision is the pitch; the design shouldn't need to work hard to look trustworthy.
-- Restraint over spectacle: retro/terminal flavor is one accent at a time, never the whole surface.
+- Familiar over clever: conventional layout, one blue accent, system fonts — nothing a first-time visitor has to learn.
 - Function before flourish: every visual addition must earn its place against the core dual-stack lookup.
 - No ads, no trackers, no filler: the thing this project explicitly refuses to be.
 - Legible under formal scrutiny: accessibility is a hard constraint on every color and motion decision, not a follow-up pass.
 
 ## Accessibility & Inclusion
 
-WCAG 2.1 AA is the formal target. Maintain and extend the existing baseline — skip links, `aria-live` regions on dynamic content, visible focus states, and `prefers-reduced-motion` handling — and verify contrast ratios explicitly for any new accent color (e.g. a retro accent against the near-black background).
+WCAG 2.1 AA is the formal target. Maintain and extend the existing baseline — skip links, `aria-live` regions on dynamic content, visible focus states, and `prefers-reduced-motion` handling — in both the light and dark theme, and compute contrast ratios for any new color pairing (see DESIGN.md §2).
