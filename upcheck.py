@@ -10,15 +10,25 @@ to the checked address, so DNS rebinding cannot swap in an internal target.
 
 import asyncio
 import ipaddress
+import os
 import re
 import socket
 import time
+import zlib
+from typing import NamedTuple
 
 import httpx
 from fastapi import APIRouter, Query
 from fastapi.responses import FileResponse
 
 import geo
+
+try:  # Optional, and only imported when UPCHECK_IMPERSONATE=1 is set — see _impersonated_status.
+    from curl_cffi import CurlOpt
+    from curl_cffi import requests as curl_requests
+except ImportError:  # pragma: no cover - exercised by deployments without the extra installed
+    CurlOpt = None
+    curl_requests = None
 
 router = APIRouter()
 
@@ -51,6 +61,23 @@ _HEADERS = {
 # Codes meaning "a server answered and is healthy, it just refused this client".
 # The site is up; only our specific request was rejected.
 _REFUSED_CODES = {401, 403, 429}
+
+# Signals that a refusal is an anti-bot interstitial rather than the site's own
+# "no". Cloudflare sets cf-mitigated on every challenge it serves; its older
+# challenge pages only carry the interstitial title. Both are definitive —
+# unlike `server: cloudflare`, which a site's genuine 403 carries too.
+_CHALLENGE_TITLE = b"<title>just a moment"
+_CHALLENGE_SNIFF = 1024  # decoded bytes of body worth looking at for the title
+_SNIFF_RAW = 32 * 1024  # encoded bytes to pull before giving up on the sniff
+
+# Off by default. When on, a detected challenge is retried once with a browser TLS
+# fingerprint (curl_cffi), because some sites answer that when they challenge httpx.
+# Measured against allianz.de it succeeds roughly half the time and only on the
+# newest profile, so it can add information but is never trusted to remove any:
+# a failed or challenged retry leaves the honest "challenged" result untouched.
+_IMPERSONATE = os.environ.get("UPCHECK_IMPERSONATE") == "1"
+_IMPERSONATE_PROFILE = os.environ.get("UPCHECK_IMPERSONATE_PROFILE", "chrome")
+_IMPERSONATE_TIMEOUT = 5.0  # seconds; deliberately below _TIMEOUT, this is a bonus check
 
 # Codes where a HEAD request is worth retrying as GET: some servers reject HEAD
 # outright (405/501), and some WAFs block HEAD as a scanner signature (403).
@@ -181,7 +208,76 @@ def _pinned(url: httpx.URL, ip: str) -> tuple[httpx.URL, dict[str, str], dict[st
     return url.copy_with(host=ip), {"Host": host_header}, extensions
 
 
-async def _fetch_hop(url: httpx.URL, ip: str, transport: httpx.AsyncBaseTransport | None = None) -> httpx.Response:
+class _Hop(NamedTuple):
+    """A response plus the only part of its body we ever read.
+
+    They travel together because the body is no longer on the response: it is
+    read under a cap and the response is closed, so `.content` would raise.
+    """
+
+    response: httpx.Response
+    body: bytes
+
+
+def _inflate(raw: bytes, encoding: str) -> bytes:
+    """Decode at most _CHALLENGE_SNIFF bytes out of `raw`, or b"" if we can't.
+
+    The output cap is the whole point: a target picks its own compression ratio,
+    so decoding a body in full lets 199 KB on the wire become 200 MB in memory.
+    Encodings the standard library cannot bound (br, zstd) return b"", and
+    _is_challenge() then relies on the cf-mitigated header alone.
+    """
+    encoding = encoding.lower().strip()
+    if encoding in ("", "identity"):
+        return raw[:_CHALLENGE_SNIFF]
+    if encoding in ("gzip", "x-gzip"):
+        wbits = (31,)
+    elif encoding == "deflate":
+        wbits = (15, -15)  # zlib-wrapped or bare; servers send both
+    else:
+        return b""
+    for bits in wbits:
+        try:
+            return zlib.decompressobj(bits).decompress(raw, _CHALLENGE_SNIFF)
+        except zlib.error:
+            continue
+    return b""
+
+
+async def _sniff_body(response: httpx.Response) -> bytes:
+    """The opening bytes of a body, read without trusting the sender's size.
+
+    Reads raw (still-encoded) bytes and stops at _SNIFF_RAW. aiter_bytes() would
+    not do: it decodes a whole 64 KB wire chunk before yielding, which is 32 MB
+    at a 1000:1 ratio. Nothing here needs more than the first _CHALLENGE_SNIFF
+    bytes anyway — the body is only ever checked for a challenge interstitial.
+    """
+    if response.is_stream_consumed:
+        # A transport that answered from memory rather than a socket, which is
+        # what MockTransport does in the tests. Nothing was read off a network.
+        raw = response.content[:_SNIFF_RAW]
+    else:
+        raw = b""
+        async for chunk in response.aiter_raw():
+            raw += chunk
+            if len(raw) >= _SNIFF_RAW:
+                break
+        raw = raw[:_SNIFF_RAW]
+    return _inflate(raw, response.headers.get("content-encoding", ""))
+
+
+async def _send(client: httpx.AsyncClient, method: str, target: httpx.URL, headers, extensions) -> _Hop:
+    """One request, reading only as much of the body as _sniff_body wants."""
+    request = client.build_request(method, target, headers=headers, extensions=extensions)
+    response = await client.send(request, stream=True)
+    try:
+        body = await _sniff_body(response)
+    finally:
+        await response.aclose()
+    return _Hop(response, body)
+
+
+async def _fetch_hop(url: httpx.URL, ip: str, transport: httpx.AsyncBaseTransport | None = None) -> _Hop:
     """HEAD first (cheap), fall back to GET when HEAD is rejected or blocked.
 
     Only the HEAD is retried. A connect failure is the target's answer, not HEAD's:
@@ -198,14 +294,66 @@ async def _fetch_hop(url: httpx.URL, ip: str, transport: httpx.AsyncBaseTranspor
         headers=_HEADERS,
     ) as client:
         try:
-            response = await client.head(target, headers=headers, extensions=extensions)
+            hop = await _send(client, "HEAD", target, headers, extensions)
         except _CONNECT_ERRORS:
             raise
         except httpx.HTTPError:
-            return await client.get(target, headers=headers, extensions=extensions)
-        if response.status_code in _RETRY_AS_GET:
-            response = await client.get(target, headers=headers, extensions=extensions)
-        return response
+            return await _send(client, "GET", target, headers, extensions)
+        if hop.response.status_code in _RETRY_AS_GET:
+            return await _send(client, "GET", target, headers, extensions)
+        return hop
+
+
+def _impersonated_get(url: httpx.URL, ip: str) -> tuple[int, bool]:
+    """One blocking, IP-pinned request carrying a browser TLS fingerprint.
+
+    Returns its status code and whether it was challenged too. curl_cffi's
+    Session takes no `resolve=` argument, so the pin is set on the handle
+    directly. That is also why this is the sync Session and not AsyncSession:
+    the async one draws a handle from a pool per request, leaving nothing to
+    pin. Redirects are not followed — a redirect target has not been through
+    _parse_target()/_resolve_public(), and this must not become the path that
+    skips them.
+
+    Streamed, and only the first chunk is read: libcurl decodes in 16 KB writes,
+    so this stays bounded however the target chose to compress its body.
+    """
+    host = url.raw_host.decode("ascii").removesuffix(".")
+    port = url.port or (443 if url.scheme == "https" else 80)
+    with curl_requests.Session() as session:
+        session.curl.setopt(CurlOpt.RESOLVE, [f"{host}:{port}:{ip}".encode()])
+        response = session.get(
+            str(url),
+            impersonate=_IMPERSONATE_PROFILE,
+            timeout=_IMPERSONATE_TIMEOUT,
+            allow_redirects=False,
+            stream=True,
+        )
+        try:
+            body = next(iter(response.iter_content()), b"")
+            return response.status_code, _is_challenge(response, body)
+        finally:
+            response.close()
+
+
+async def _impersonated_status(url: httpx.URL, ip: str) -> int | None:
+    """Status code of a browser-shaped retry, or None if it told us nothing new.
+
+    None covers every "no": the flag is off, curl_cffi is not installed, the
+    request failed, or this attempt was challenged as well. Callers keep their
+    original result on None, so this can only ever add information.
+
+    Like the DNS executor call, the thread cannot be cancelled;
+    _IMPERSONATE_TIMEOUT keeps it well inside _CHECK_BUDGET.
+    """
+    if not _IMPERSONATE or curl_requests is None:
+        return None
+    try:
+        status_code, challenged = await asyncio.to_thread(_impersonated_get, url, ip)
+    except Exception:
+        # A bonus check must never turn a usable result into an error.
+        return None
+    return None if challenged else status_code
 
 
 def _geo_for(ips: list[str]) -> list[dict]:
@@ -223,19 +371,41 @@ def _geo_for(ips: list[str]) -> list[dict]:
     return located
 
 
-def _classify(status_code: int) -> str:
+def _is_challenge(response, body: bytes = b"") -> bool:
+    """Whether this response is an anti-bot challenge page rather than the site.
+
+    Takes any response exposing .headers, so it reads an httpx and a curl_cffi
+    response alike, and the already-capped opening bytes of its body.
+    """
+    if "cf-mitigated" in response.headers:
+        return True
+    if "html" not in response.headers.get("content-type", ""):
+        return False
+    # A HEAD has no body to sniff; a challenge names itself in the header above.
+    return _CHALLENGE_TITLE in body[:_CHALLENGE_SNIFF].lower()
+
+
+def _classify(status_code: int, challenged: bool = False) -> str:
     if status_code < 400:
         return "up"
-    if status_code in _REFUSED_CODES:
+    if challenged or status_code in _REFUSED_CODES:
         # The server responded quickly and correctly — it is reachable and
-        # healthy. It simply declined to serve this particular client.
+        # healthy. It simply declined to serve this particular client. A
+        # challenge says the same thing whatever code it arrives under (older
+        # Cloudflare interstitials used 503), so it outranks the code.
         return "up"
     if status_code < 500:
         return "degraded"
     return "down"
 
 
-def _describe(status_code: int) -> str:
+def _describe_bypassed(status_code: int) -> str:
+    return f"Site is up — bot protection challenged this check, but a browser-shaped retry got through ({status_code})."
+
+
+def _describe(status_code: int, challenged: bool = False) -> str:
+    if challenged:
+        return f"Site is up, but served a bot-protection challenge ({status_code}). A human browser will reach it fine."
     if status_code in _REFUSED_CODES:
         return (
             f"Site is up, but refused this check ({status_code}) — most likely "
@@ -256,7 +426,7 @@ async def _http_check(url: httpx.URL, ips: list[str], transport: httpx.AsyncBase
     start = time.monotonic()
     redirects: list[str] = []
     while True:
-        response = await _fetch_hop(url, ips[0], transport)
+        response, body = await _fetch_hop(url, ips[0], transport)
         location = response.headers.get("location")
         if response.status_code not in _REDIRECT_CODES or not location:
             break
@@ -281,11 +451,22 @@ async def _http_check(url: httpx.URL, ips: list[str], transport: httpx.AsyncBase
             detail = "Redirect target does not resolve"
             return {"status": "down", "stage": "dns", "detail": detail, "redirects": redirects}
 
+    challenged = _is_challenge(response, body)
+    status_code = response.status_code
+    detail = _describe(status_code, challenged)
+    if challenged:
+        # Only a direct answer counts as getting through. A 3xx would mean "go
+        # somewhere else", and this path deliberately does not follow redirects.
+        bypassed = await _impersonated_status(url, ips[0])
+        if bypassed is not None and bypassed < 300:
+            status_code, challenged = bypassed, False
+            detail = _describe_bypassed(bypassed)
+
     return {
-        "status": _classify(response.status_code),
+        "status": _classify(status_code, challenged),
         "stage": "done",
-        "detail": _describe(response.status_code),
-        "http_status": response.status_code,
+        "detail": detail,
+        "http_status": status_code,
         "response_time_ms": round((time.monotonic() - start) * 1000),
         "final_url": str(url),
         "redirects": redirects,

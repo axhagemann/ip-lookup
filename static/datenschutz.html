@@ -5,252 +5,243 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Datenschutzerklärung – IP Lookup von Alexander Hagemann" />
   <title>Datenschutzerklärung – IP Lookup</title>
-  <link rel="stylesheet" href="/style.css" />
-  <style>
-    body { padding: 3rem 2rem; }
-    .container section p + p { margin-top: 0.75rem; }
-    .container section p + ul { margin-top: 0.4rem; }
-    .container section ul + p { margin-top: 0.75rem; }
-
-    #optout-toggle {
-      background: none;
-      border: 1px solid #666;
-      color: #c0c0c0;
-      padding: 0.6rem 1rem;
-      cursor: pointer;
-      font-size: 0.8rem;
-      font-family: "Courier New", Courier, monospace;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      transition: border-color 0.1s, color 0.1s;
-    }
-    #optout-toggle:hover { border-color: #888; color: #e0e0e0; }
-    @media (prefers-reduced-motion: reduce) {
-      #optout-toggle { transition: none; }
-    }
-    #optout-state:empty { display: none; }
-  </style>
+  <meta name="color-scheme" content="light dark" />
+  <link rel="stylesheet" href="/style.css?v=2" />
+  <script defer src="/theme.js?v=2"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Zum Inhalt springen</a>
 
-  <div class="container">
-    <a class="back" href="/"><span aria-hidden="true">← </span>Zurück</a>
+  <header class="topbar">
+    <a class="site-name" href="/">alexander-hagemann.de</a>
+    <button type="button" class="theme-toggle" aria-pressed="false" title="Dunkelmodus umschalten" hidden>
+      <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <span class="visually-hidden">Dunkelmodus</span>
+    </button>
+  </header>
 
-    <main id="main">
-      <h1><span aria-hidden="true">// </span>Datenschutzerklärung</h1>
+  <main id="main" class="prose">
+    <h1>Datenschutzerklärung</h1>
 
-      <div class="card">
+    <div class="card">
 
-        <section aria-labelledby="sec-1">
-          <h2 id="sec-1"><span aria-hidden="true">// </span>1. Verantwortlicher</h2>
-          <p>
-            Alexander Hagemann<br>
-            Angela-Molitoris-Platz 33<br>
-            81245 München<br>
-            E-Mail: <a href="mailto:anfragen@alexander-hagemann.de">anfragen@alexander-hagemann.de</a>
-          </p>
-        </section>
+      <section aria-labelledby="sec-1">
+        <h2 id="sec-1">1. Verantwortlicher</h2>
+        <p>
+          Alexander Hagemann<br>
+          Angela-Molitoris-Platz 33<br>
+          81245 München<br>
+          E-Mail: <a href="mailto:anfragen@alexander-hagemann.de">anfragen@alexander-hagemann.de</a>
+        </p>
+      </section>
 
-        <section aria-labelledby="sec-2">
-          <h2 id="sec-2"><span aria-hidden="true">// </span>2. Verarbeitete Daten und Zweck</h2>
-          <p>
-            Dieser Dienst zeigt Ihnen Ihre eigene IP-Adresse sowie daraus abgeleitete
-            Netzwerkinformationen an. Dazu wird Ihre IP-Adresse verarbeitet, was technisch
-            notwendig ist, um den Dienst bereitzustellen.
-          </p>
-          <p>Aus der IP-Adresse werden folgende Informationen abgeleitet:</p>
-          <ul role="list">
-            <li>Land, Region, Stadt (Geolokalisation)</li>
-            <li>Internet Service Provider und Autonomes System (ASN)</li>
-            <li>Zeitzone und ungefähre geografische Koordinaten</li>
-          </ul>
-          <p>
-            Diese Zuordnung erfolgt ausschließlich anhand einer lokal auf dem Server
-            gespeicherten Datenbank (MaxMind GeoLite2). Ihre IP-Adresse wird nicht
-            an MaxMind oder andere Dritte übermittelt. Das Ergebnis wird im
-            Arbeitsspeicher des Servers bis zu einer Stunde zwischengespeichert, damit
-            wiederholte Abrufe nicht erneut nachgeschlagen werden müssen.
-          </p>
-          <p>
-            Die Abfrage steht auch als Programmierschnittstelle zur Verfügung und kann
-            von anderen Websites aus aufgerufen werden. Besuchen Sie eine solche Website,
-            wird Ihre IP-Adresse auf dieselbe Weise verarbeitet.
-          </p>
-          <p>
-            Mit dem Werkzeug „Is It Up?“ können Sie prüfen, ob eine Website erreichbar
-            ist. Dazu verarbeitet der Server die von Ihnen eingegebene Adresse (URL),
-            löst sie auf und ruft sie von seiner eigenen IP-Adresse aus auf; die
-            geprüfte Website erhält dabei keine Informationen über Sie. Abgerufen wird
-            dabei nur die Domain: ein eingegebener Pfad oder Abfrage-String wird vor der
-            Prüfung verworfen und erreicht die geprüfte Website nicht. Die Adresse wird
-            nur für die Prüfung verwendet und nicht gespeichert; lediglich bei
-            technischen Störungen kann sie in den Serverprotokollen (Punkt 3) erscheinen.
-          </p>
-        </section>
+      <section aria-labelledby="sec-2">
+        <h2 id="sec-2">2. Verarbeitete Daten und Zweck</h2>
+        <p>
+          Dieser Dienst zeigt Ihnen Ihre eigene IP-Adresse sowie daraus abgeleitete
+          Netzwerkinformationen an. Dazu wird Ihre IP-Adresse verarbeitet, was technisch
+          notwendig ist, um den Dienst bereitzustellen.
+        </p>
+        <p>Aus der IP-Adresse werden folgende Informationen abgeleitet:</p>
+        <ul role="list">
+          <li>Land, Region, Stadt (Geolokalisation)</li>
+          <li>Internet Service Provider und Autonomes System (ASN)</li>
+          <li>Zeitzone und ungefähre geografische Koordinaten</li>
+        </ul>
+        <p>
+          Diese Zuordnung erfolgt ausschließlich anhand einer lokal auf dem Server
+          gespeicherten Datenbank (MaxMind GeoLite2). Ihre IP-Adresse wird nicht
+          an MaxMind oder andere Dritte übermittelt. Das Ergebnis wird im
+          Arbeitsspeicher des Servers bis zu einer Stunde zwischengespeichert, damit
+          wiederholte Abrufe nicht erneut nachgeschlagen werden müssen.
+        </p>
+        <p>
+          Die Abfrage steht auch als Programmierschnittstelle zur Verfügung und kann
+          von anderen Websites aus aufgerufen werden. Besuchen Sie eine solche Website,
+          wird Ihre IP-Adresse auf dieselbe Weise verarbeitet.
+        </p>
+        <p>
+          Mit dem Werkzeug „Is It Up?“ können Sie prüfen, ob eine Website erreichbar
+          ist. Dazu verarbeitet der Server die von Ihnen eingegebene Adresse (URL),
+          löst sie auf und ruft sie von seiner eigenen IP-Adresse aus auf; die
+          geprüfte Website erhält dabei keine Informationen über Sie. Abgerufen wird
+          dabei nur die Domain: ein eingegebener Pfad oder Abfrage-String wird vor der
+          Prüfung verworfen und erreicht die geprüfte Website nicht. Die Adresse wird
+          nur für die Prüfung verwendet und nicht gespeichert; lediglich bei
+          technischen Störungen kann sie in den Serverprotokollen (Punkt 3) erscheinen.
+        </p>
+      </section>
 
-        <section aria-labelledby="sec-3">
-          <h2 id="sec-3"><span aria-hidden="true">// </span>3. Serverprotokolle</h2>
-          <p>
-            Bei jeder Anfrage werden automatisch Daten in Serverprotokollen (Logfiles) gespeichert:
-          </p>
-          <ul role="list">
-            <li>IP-Adresse</li>
-            <li>Aufgerufene URL und HTTP-Methode</li>
-            <li>HTTP-Statuscode und Antwortzeit</li>
-            <li>Zeitstempel</li>
-          </ul>
-          <p>
-            Die Logfiles werden nach 7 Tagen automatisch gelöscht.
-          </p>
-        </section>
+      <section aria-labelledby="sec-3">
+        <h2 id="sec-3">3. Serverprotokolle</h2>
+        <p>
+          Bei jeder Anfrage werden automatisch Daten in Serverprotokollen (Logfiles) gespeichert:
+        </p>
+        <ul role="list">
+          <li>IP-Adresse</li>
+          <li>Aufgerufene URL und HTTP-Methode</li>
+          <li>HTTP-Statuscode und Antwortzeit</li>
+          <li>Zeitstempel</li>
+        </ul>
+        <p>
+          Die Logfiles werden nach 7 Tagen automatisch gelöscht.
+        </p>
+      </section>
 
-        <section aria-labelledby="sec-4">
-          <h2 id="sec-4"><span aria-hidden="true">// </span>4. Rechtsgrundlage</h2>
-          <p>
-            Die Verarbeitung Ihrer IP-Adresse zur Bereitstellung des Dienstes, die
-            Verarbeitung der beim Werkzeug „Is It Up?“ eingegebenen Adresse sowie die
-            Speicherung Ihrer IP-Adresse in Serverprotokollen erfolgt auf Grundlage von
-            <span class="legal-ref">Art. 6 Abs. 1 lit. f DSGVO</span>. Unser berechtigtes
-            Interesse liegt in der sicheren, stabilen und funktionsfähigen Bereitstellung
-            unseres Online-Angebots.
-          </p>
-        </section>
+      <section aria-labelledby="sec-4">
+        <h2 id="sec-4">4. Rechtsgrundlage</h2>
+        <p>
+          Die Verarbeitung Ihrer IP-Adresse zur Bereitstellung des Dienstes, die
+          Verarbeitung der beim Werkzeug „Is It Up?“ eingegebenen Adresse sowie die
+          Speicherung Ihrer IP-Adresse in Serverprotokollen erfolgt auf Grundlage von
+          <span class="legal-ref">Art. 6 Abs. 1 lit. f DSGVO</span>. Unser berechtigtes
+          Interesse liegt in der sicheren, stabilen und funktionsfähigen Bereitstellung
+          unseres Online-Angebots.
+        </p>
+      </section>
 
-        <section aria-labelledby="sec-5">
-          <h2 id="sec-5"><span aria-hidden="true">// </span>5. Reichweitenmessung</h2>
+      <section aria-labelledby="sec-5">
+        <h2 id="sec-5">5. Reichweitenmessung</h2>
+        <p>
+          Zur Messung der Reichweite dieser Website wird die Analyse-Software
+          GoatCounter eingesetzt. Sie wird selbst betrieben und läuft auf demselben
+          Server wie diese Website. Sowohl das Zählskript als auch der Zählpunkt
+          werden von dieser Domain ausgeliefert; es werden keine Ressourcen von
+          Dritten geladen und keine Daten an Dritte übermittelt.
+        </p>
+        <p>Dabei werden folgende Daten verarbeitet:</p>
+        <ul role="list">
+          <li>Aufgerufene Seite (Pfad) und Seitentitel</li>
+          <li>Verweisende Seite (Referrer), sofern vom Browser übermittelt</li>
+          <li>Herkunftsland, abgeleitet aus der IP-Adresse</li>
+          <li>Browser- und Betriebssystemtyp sowie Bildschirmbreite</li>
+          <li>Eine zufällig erzeugte Sitzungskennung, damit wiederholte Aufrufe
+              innerhalb einer Sitzung nicht mehrfach gezählt werden</li>
+        </ul>
+        <p>
+          Ihre IP-Adresse und die Kennung Ihres Browsers (User-Agent) werden nicht in
+          den Statistikdaten gespeichert. Sie werden ausschließlich dazu verwendet, das
+          Herkunftsland zu bestimmen und Ihre Aufrufe für die Dauer einer Sitzung einer
+          zufällig erzeugten Kennung zuzuordnen; gespeichert wird allein diese Kennung.
+          Die Zuordnung liegt im Arbeitsspeicher des Servers und wird spätestens acht
+          Stunden nach Ihrem letzten Aufruf gelöscht; bei einem Neustart des Dienstes
+          wird sie kurzzeitig auf dem Server zwischengespeichert und anschließend
+          weitergeführt. Eine Wiedererkennung über diese Website hinaus findet nicht
+          statt.
+        </p>
+        <p>
+          Es werden keine Cookies gesetzt. Informationen auf Ihrem Endgerät werden
+          weder gespeichert noch ausgelesen — mit der einzigen Ausnahme eines von
+          Ihnen selbst gesetzten Widerspruchs-Kennzeichens (siehe unten), dessen
+          Abfrage nach <span class="legal-ref">§ 25 Abs. 2 Nr. 2 TDDDG</span> unbedingt
+          erforderlich ist, um Ihren Widerspruch zu berücksichtigen. Eine Einwilligung
+          nach <span class="legal-ref">§ 25 Abs. 1 TDDDG</span> ist daher nicht
+          erforderlich.
+        </p>
+        <p>
+          Rechtsgrundlage ist <span class="legal-ref">Art. 6 Abs. 1 lit. f DSGVO</span>.
+          Das berechtigte Interesse liegt in der statistischen Auswertung der Nutzung,
+          um Inhalte und Betrieb der Website zu verbessern. Diese Verarbeitung verfolgt
+          einen eigenständigen Zweck und ist von der unter Punkt 2 beschriebenen
+          Verarbeitung zur Bereitstellung des Dienstes zu unterscheiden.
+        </p>
+        <p>
+          Die aggregierten Statistikdaten werden nach 12 Monaten gelöscht.
+        </p>
+        <p>
+          Sendet Ihr Browser das Signal „Do Not Track“ (DNT) oder „Global Privacy
+          Control“ (GPC), werten wir das als Widerspruch nach
+          <span class="legal-ref">Art. 21 DSGVO</span>: Solche Anfragen werden bereits
+          auf dem Server verworfen und nicht gezählt. Dafür ist kein weiteres Zutun
+          nötig, und es wirkt auch ohne aktiviertes JavaScript.
+        </p>
+        <p>
+          Unabhängig davon können Sie der Reichweitenmessung hier jederzeit
+          widersprechen. Die Einstellung wird lokal in diesem Browser gespeichert und
+          gilt, bis Sie sie hier wieder aufheben oder die Browserdaten löschen.
+        </p>
+        <p id="optout-wrap" hidden>
+          <button type="button" id="optout-toggle" class="btn btn-secondary"></button>
+        </p>
+        <p id="optout-state" role="status"></p>
+        <noscript>
           <p>
-            Zur Messung der Reichweite dieser Website wird die Analyse-Software
-            GoatCounter eingesetzt. Sie wird selbst betrieben und läuft auf demselben
-            Server wie diese Website. Sowohl das Zählskript als auch der Zählpunkt
-            werden von dieser Domain ausgeliefert; es werden keine Ressourcen von
-            Dritten geladen und keine Daten an Dritte übermittelt.
+            Der Widerspruch über diese Schaltfläche benötigt JavaScript. Ohne
+            JavaScript wirkt weiterhin das oben genannte DNT- bzw. GPC-Signal Ihres
+            Browsers; alternativ können Sie Anfragen an <code>/count</code> in Ihrem
+            Browser blockieren.
           </p>
-          <p>Dabei werden folgende Daten verarbeitet:</p>
-          <ul role="list">
-            <li>Aufgerufene Seite (Pfad) und Seitentitel</li>
-            <li>Verweisende Seite (Referrer), sofern vom Browser übermittelt</li>
-            <li>Herkunftsland, abgeleitet aus der IP-Adresse</li>
-            <li>Browser- und Betriebssystemtyp sowie Bildschirmbreite</li>
-            <li>Eine zufällig erzeugte Sitzungskennung, damit wiederholte Aufrufe
-                innerhalb einer Sitzung nicht mehrfach gezählt werden</li>
-          </ul>
-          <p>
-            Ihre IP-Adresse und die Kennung Ihres Browsers (User-Agent) werden nicht in
-            den Statistikdaten gespeichert. Sie werden ausschließlich dazu verwendet, das
-            Herkunftsland zu bestimmen und Ihre Aufrufe für die Dauer einer Sitzung einer
-            zufällig erzeugten Kennung zuzuordnen; gespeichert wird allein diese Kennung.
-            Die Zuordnung liegt im Arbeitsspeicher des Servers und wird spätestens acht
-            Stunden nach Ihrem letzten Aufruf gelöscht; bei einem Neustart des Dienstes
-            wird sie kurzzeitig auf dem Server zwischengespeichert und anschließend
-            weitergeführt. Eine Wiedererkennung über diese Website hinaus findet nicht
-            statt.
-          </p>
-          <p>
-            Es werden keine Cookies gesetzt. Informationen auf Ihrem Endgerät werden
-            weder gespeichert noch ausgelesen — mit der einzigen Ausnahme eines von
-            Ihnen selbst gesetzten Widerspruchs-Kennzeichens (siehe unten), dessen
-            Abfrage nach <span class="legal-ref">§ 25 Abs. 2 Nr. 2 TDDDG</span> unbedingt
-            erforderlich ist, um Ihren Widerspruch zu berücksichtigen. Eine Einwilligung
-            nach <span class="legal-ref">§ 25 Abs. 1 TDDDG</span> ist daher nicht
-            erforderlich.
-          </p>
-          <p>
-            Rechtsgrundlage ist <span class="legal-ref">Art. 6 Abs. 1 lit. f DSGVO</span>.
-            Das berechtigte Interesse liegt in der statistischen Auswertung der Nutzung,
-            um Inhalte und Betrieb der Website zu verbessern. Diese Verarbeitung verfolgt
-            einen eigenständigen Zweck und ist von der unter Punkt 2 beschriebenen
-            Verarbeitung zur Bereitstellung des Dienstes zu unterscheiden.
-          </p>
-          <p>
-            Die aggregierten Statistikdaten werden nach 12 Monaten gelöscht.
-          </p>
-          <p>
-            Sendet Ihr Browser das Signal „Do Not Track“ (DNT) oder „Global Privacy
-            Control“ (GPC), werten wir das als Widerspruch nach
-            <span class="legal-ref">Art. 21 DSGVO</span>: Solche Anfragen werden bereits
-            auf dem Server verworfen und nicht gezählt. Dafür ist kein weiteres Zutun
-            nötig, und es wirkt auch ohne aktiviertes JavaScript.
-          </p>
-          <p>
-            Unabhängig davon können Sie der Reichweitenmessung hier jederzeit
-            widersprechen. Die Einstellung wird lokal in diesem Browser gespeichert und
-            gilt, bis Sie sie hier wieder aufheben oder die Browserdaten löschen.
-          </p>
-          <p id="optout-wrap" hidden>
-            <button type="button" id="optout-toggle"></button>
-          </p>
-          <p id="optout-state" role="status"></p>
-          <noscript>
-            <p>
-              Der Widerspruch über diese Schaltfläche benötigt JavaScript. Ohne
-              JavaScript wirkt weiterhin das oben genannte DNT- bzw. GPC-Signal Ihres
-              Browsers; alternativ können Sie Anfragen an <code>/count</code> in Ihrem
-              Browser blockieren.
-            </p>
-          </noscript>
-        </section>
+        </noscript>
+      </section>
 
-        <section aria-labelledby="sec-6">
-          <h2 id="sec-6"><span aria-hidden="true">// </span>6. Datenweitergabe an Dritte &amp; Serverstandort</h2>
-          <p>
-            Die Website und der Dienst werden beim Webhosting-Dienstleister Hetzner
-            (Hetzner Online GmbH) auf Servern innerhalb der Europäischen Union (Finnland)
-            gehostet. Mit der Hetzner Online GmbH wurde ein Vertrag über die
-            Auftragsverarbeitung (AVV) gemäß Art. 28 DSGVO geschlossen. Eine Übermittlung
-            personenbezogener Daten in Drittländer findet nicht statt.
-          </p>
-          <p>
-            Eine Weitergabe an sonstige Dritte findet nicht statt, sofern keine gesetzliche
-            Verpflichtung besteht.
-          </p>
-          <p>
-            Die Geodatenbank (GeoLite2) wird wöchentlich automatisch von den Servern von
-            MaxMind (<a href="https://www.maxmind.com" target="_blank" rel="noopener" aria-label="maxmind.com (öffnet in neuem Tab)">maxmind.com</a>)
-            heruntergeladen. Dabei werden keine Besucherdaten übertragen — lediglich die
-            Server-IP nimmt Kontakt zu MaxMind auf. Einzelne Nutzeranfragen werden nicht
-            an MaxMind weitergegeben.
-          </p>
-        </section>
+      <section aria-labelledby="sec-6">
+        <h2 id="sec-6">6. Datenweitergabe an Dritte &amp; Serverstandort</h2>
+        <p>
+          Die Website und der Dienst werden beim Webhosting-Dienstleister Hetzner
+          (Hetzner Online GmbH) auf Servern innerhalb der Europäischen Union (Finnland)
+          gehostet. Mit der Hetzner Online GmbH wurde ein Vertrag über die
+          Auftragsverarbeitung (AVV) gemäß Art. 28 DSGVO geschlossen. Eine Übermittlung
+          personenbezogener Daten in Drittländer findet nicht statt.
+        </p>
+        <p>
+          Eine Weitergabe an sonstige Dritte findet nicht statt, sofern keine gesetzliche
+          Verpflichtung besteht.
+        </p>
+        <p>
+          Die Geodatenbank (GeoLite2) wird wöchentlich automatisch von den Servern von
+          MaxMind (<a href="https://www.maxmind.com" target="_blank" rel="noopener" aria-label="maxmind.com (öffnet in neuem Tab)">maxmind.com</a>)
+          heruntergeladen. Dabei werden keine Besucherdaten übertragen — lediglich die
+          Server-IP nimmt Kontakt zu MaxMind auf. Einzelne Nutzeranfragen werden nicht
+          an MaxMind weitergegeben.
+        </p>
+      </section>
 
-        <section aria-labelledby="sec-7">
-          <h2 id="sec-7"><span aria-hidden="true">// </span>7. Ihre Rechte</h2>
-          <p>
-            Sie haben gegenüber dem Verantwortlichen folgende Rechte bezüglich der
-            kurzzeitigen Verarbeitung Ihrer vollständigen IP-Adresse beim Aufruf der Seite
-            sowie bezüglich der unter Punkt 5 beschriebenen Reichweitenmessung:
-          </p>
-          <ul role="list">
-            <li>Auskunft über gespeicherte Daten (Art. 15 DSGVO)</li>
-            <li>Berichtigung unrichtiger Daten (Art. 16 DSGVO)</li>
-            <li>Löschung Ihrer Daten (Art. 17 DSGVO)</li>
-            <li>Einschränkung der Verarbeitung (Art. 18 DSGVO)</li>
-            <li>Datenübertragbarkeit (Art. 20 DSGVO)</li>
-            <li>Widerspruch gegen die Verarbeitung (Art. 21 DSGVO)</li>
-          </ul>
-          <p>
-            Zur Geltendmachung Ihrer Rechte wenden Sie sich an die unter Punkt 1 genannte
-            E-Mail-Adresse.
-          </p>
-        </section>
+      <section aria-labelledby="sec-7">
+        <h2 id="sec-7">7. Ihre Rechte</h2>
+        <p>
+          Sie haben gegenüber dem Verantwortlichen folgende Rechte bezüglich der
+          kurzzeitigen Verarbeitung Ihrer vollständigen IP-Adresse beim Aufruf der Seite
+          sowie bezüglich der unter Punkt 5 beschriebenen Reichweitenmessung:
+        </p>
+        <ul role="list">
+          <li>Auskunft über gespeicherte Daten (Art. 15 DSGVO)</li>
+          <li>Berichtigung unrichtiger Daten (Art. 16 DSGVO)</li>
+          <li>Löschung Ihrer Daten (Art. 17 DSGVO)</li>
+          <li>Einschränkung der Verarbeitung (Art. 18 DSGVO)</li>
+          <li>Datenübertragbarkeit (Art. 20 DSGVO)</li>
+          <li>Widerspruch gegen die Verarbeitung (Art. 21 DSGVO)</li>
+        </ul>
+        <p>
+          Zur Geltendmachung Ihrer Rechte wenden Sie sich an die unter Punkt 1 genannte
+          E-Mail-Adresse.
+        </p>
+      </section>
 
-        <section aria-labelledby="sec-8">
-          <h2 id="sec-8"><span aria-hidden="true">// </span>8. Beschwerderecht</h2>
-          <p>
-            Sie haben das Recht, sich bei einer Datenschutz-Aufsichtsbehörde zu beschweren.
-            Die für Bayern zuständige Behörde für den nicht-öffentlichen Bereich ist:
-          </p>
-          <p>
-            Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)<br>
-            Promenade 18<br>
-            91522 Ansbach<br>
-            <a href="https://www.lda.bayern.de" target="_blank" rel="noopener" aria-label="www.lda.bayern.de (öffnet in neuem Tab)">www.lda.bayern.de</a>
-          </p>
-        </section>
+      <section aria-labelledby="sec-8">
+        <h2 id="sec-8">8. Beschwerderecht</h2>
+        <p>
+          Sie haben das Recht, sich bei einer Datenschutz-Aufsichtsbehörde zu beschweren.
+          Die für Bayern zuständige Behörde für den nicht-öffentlichen Bereich ist:
+        </p>
+        <p>
+          Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)<br>
+          Promenade 18<br>
+          91522 Ansbach<br>
+          <a href="https://www.lda.bayern.de" target="_blank" rel="noopener" aria-label="www.lda.bayern.de (öffnet in neuem Tab)">www.lda.bayern.de</a>
+        </p>
+      </section>
 
-      </div>
-    </main>
-  </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <nav class="footer-links" aria-label="Rechtliches">
+      <a href="/impressum.html" lang="de">Impressum</a>
+      <a href="/datenschutz.html" lang="de">Datenschutz</a>
+      <a href="/privacy.html" lang="en">Privacy</a>
+    </nav>
+  </footer>
 
   <!-- Self-hosted GoatCounter: first-party endpoints only, cookieless, no third party. -->
   <script data-goatcounter="/count" async src="/count.js"></script>

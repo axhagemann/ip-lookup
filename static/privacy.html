@@ -5,235 +5,226 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Privacy Policy – IP Lookup by Alexander Hagemann" />
   <title>Privacy Policy – IP Lookup</title>
-  <link rel="stylesheet" href="/style.css" />
-  <style>
-    body { padding: 3rem 2rem; }
-    .container section p + p { margin-top: 0.75rem; }
-    .container section p + ul { margin-top: 0.4rem; }
-    .container section ul + p { margin-top: 0.75rem; }
-
-    #optout-toggle {
-      background: none;
-      border: 1px solid #666;
-      color: #c0c0c0;
-      padding: 0.6rem 1rem;
-      cursor: pointer;
-      font-size: 0.8rem;
-      font-family: "Courier New", Courier, monospace;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      transition: border-color 0.1s, color 0.1s;
-    }
-    #optout-toggle:hover { border-color: #888; color: #e0e0e0; }
-    @media (prefers-reduced-motion: reduce) {
-      #optout-toggle { transition: none; }
-    }
-    #optout-state:empty { display: none; }
-  </style>
+  <meta name="color-scheme" content="light dark" />
+  <link rel="stylesheet" href="/style.css?v=2" />
+  <script defer src="/theme.js?v=2"></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
 
-  <div class="container">
-    <a class="back" href="/"><span aria-hidden="true">← </span>Back</a>
+  <header class="topbar">
+    <a class="site-name" href="/">alexander-hagemann.de</a>
+    <button type="button" class="theme-toggle" aria-pressed="false" title="Toggle dark mode" hidden>
+      <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <span class="visually-hidden">Dark mode</span>
+    </button>
+  </header>
 
-    <main id="main">
-      <h1><span aria-hidden="true">// </span>Privacy Policy</h1>
+  <main id="main" class="prose">
+    <h1>Privacy Policy</h1>
 
-      <div class="card">
+    <div class="card">
 
-        <section aria-labelledby="sec-1">
-          <h2 id="sec-1"><span aria-hidden="true">// </span>1. Controller</h2>
-          <p>
-            Alexander Hagemann<br>
-            Angela-Molitoris-Platz 33<br>
-            81245 Munich, Germany<br>
-            Email: <a href="mailto:anfragen@alexander-hagemann.de">anfragen@alexander-hagemann.de</a>
-          </p>
-        </section>
+      <section aria-labelledby="sec-1">
+        <h2 id="sec-1">1. Controller</h2>
+        <p>
+          Alexander Hagemann<br>
+          Angela-Molitoris-Platz 33<br>
+          81245 Munich, Germany<br>
+          Email: <a href="mailto:anfragen@alexander-hagemann.de">anfragen@alexander-hagemann.de</a>
+        </p>
+      </section>
 
-        <section aria-labelledby="sec-2">
-          <h2 id="sec-2"><span aria-hidden="true">// </span>2. Processed Data and Purpose</h2>
-          <p>
-            This service displays your own IP address as well as network information derived from it.
-            For this purpose, your IP address is processed, which is technically necessary to provide the service.
-          </p>
-          <p>The following information is derived from the IP address:</p>
-          <ul role="list">
-            <li>Country, region, city (geolocation)</li>
-            <li>Internet Service Provider and Autonomous System (ASN)</li>
-            <li>Time zone and approximate geographical coordinates</li>
-          </ul>
-          <p>
-            This assignment is carried out exclusively using a database stored locally on the server
-            (MaxMind GeoLite2). Your IP address is not transmitted to MaxMind or any other third parties.
-            The result is cached in the server's memory for up to one hour so that repeat requests do not
-            need to be looked up again.
-          </p>
-          <p>
-            The lookup is also available as an API and can be called from other websites. If you visit
-            such a website, your IP address is processed in the same way.
-          </p>
-          <p>
-            The "Is It Up?" tool lets you check whether a website is reachable. For this, the server
-            processes the address (URL) you enter, resolves it and requests it from its own IP address;
-            the checked website receives no information about you. Only the domain is requested: any
-            path or query string you enter is discarded before the check and never reaches the checked
-            website. The address is used only for the check and is not stored; only in the event of
-            technical faults can it appear in the server logs (Section 3).
-          </p>
-        </section>
+      <section aria-labelledby="sec-2">
+        <h2 id="sec-2">2. Processed Data and Purpose</h2>
+        <p>
+          This service displays your own IP address as well as network information derived from it.
+          For this purpose, your IP address is processed, which is technically necessary to provide the service.
+        </p>
+        <p>The following information is derived from the IP address:</p>
+        <ul role="list">
+          <li>Country, region, city (geolocation)</li>
+          <li>Internet Service Provider and Autonomous System (ASN)</li>
+          <li>Time zone and approximate geographical coordinates</li>
+        </ul>
+        <p>
+          This assignment is carried out exclusively using a database stored locally on the server
+          (MaxMind GeoLite2). Your IP address is not transmitted to MaxMind or any other third parties.
+          The result is cached in the server's memory for up to one hour so that repeat requests do not
+          need to be looked up again.
+        </p>
+        <p>
+          The lookup is also available as an API and can be called from other websites. If you visit
+          such a website, your IP address is processed in the same way.
+        </p>
+        <p>
+          The "Is It Up?" tool lets you check whether a website is reachable. For this, the server
+          processes the address (URL) you enter, resolves it and requests it from its own IP address;
+          the checked website receives no information about you. Only the domain is requested: any
+          path or query string you enter is discarded before the check and never reaches the checked
+          website. The address is used only for the check and is not stored; only in the event of
+          technical faults can it appear in the server logs (Section 3).
+        </p>
+      </section>
 
-        <section aria-labelledby="sec-3">
-          <h2 id="sec-3"><span aria-hidden="true">// </span>3. Server Logs</h2>
-          <p>
-            With every request, data is automatically stored in server log files:
-          </p>
-          <ul role="list">
-            <li>IP address</li>
-            <li>Requested URL and HTTP method</li>
-            <li>HTTP status code and response time</li>
-            <li>Timestamp</li>
-          </ul>
-          <p>
-            The log files are automatically deleted after 7 days.
-          </p>
-        </section>
+      <section aria-labelledby="sec-3">
+        <h2 id="sec-3">3. Server Logs</h2>
+        <p>
+          With every request, data is automatically stored in server log files:
+        </p>
+        <ul role="list">
+          <li>IP address</li>
+          <li>Requested URL and HTTP method</li>
+          <li>HTTP status code and response time</li>
+          <li>Timestamp</li>
+        </ul>
+        <p>
+          The log files are automatically deleted after 7 days.
+        </p>
+      </section>
 
-        <section aria-labelledby="sec-4">
-          <h2 id="sec-4"><span aria-hidden="true">// </span>4. Legal Basis</h2>
-          <p>
-            The processing of your IP address to provide the service, the processing of the address you
-            enter into the "Is It Up?" tool, and the storage of your IP address in server log files
-            are based on <span class="legal-ref">Art. 6 (1) (f) GDPR</span>. Our legitimate interest lies in the secure,
-            stable, and functional provision of our online service.
-          </p>
-        </section>
+      <section aria-labelledby="sec-4">
+        <h2 id="sec-4">4. Legal Basis</h2>
+        <p>
+          The processing of your IP address to provide the service, the processing of the address you
+          enter into the "Is It Up?" tool, and the storage of your IP address in server log files
+          are based on <span class="legal-ref">Art. 6 (1) (f) GDPR</span>. Our legitimate interest lies in the secure,
+          stable, and functional provision of our online service.
+        </p>
+      </section>
 
-        <section aria-labelledby="sec-5">
-          <h2 id="sec-5"><span aria-hidden="true">// </span>5. Audience Measurement</h2>
+      <section aria-labelledby="sec-5">
+        <h2 id="sec-5">5. Audience Measurement</h2>
+        <p>
+          This website uses GoatCounter to measure how often its pages are visited.
+          It is self-hosted and runs on the same server as this website. Both the
+          counting script and the counting endpoint are served from this domain; no
+          resources are loaded from third parties and no data is passed on to them.
+        </p>
+        <p>The following data is processed:</p>
+        <ul role="list">
+          <li>Requested page (path) and page title</li>
+          <li>Referring page, if sent by the browser</li>
+          <li>Country of origin, derived from the IP address</li>
+          <li>Browser and operating system type, and screen width</li>
+          <li>A randomly generated session identifier, so that repeat views within one
+              session are not counted more than once</li>
+        </ul>
+        <p>
+          Your IP address and your browser identifier (User-Agent) are not stored in the
+          statistics. They are used solely to determine the country of origin and to
+          associate your views with a randomly generated identifier for the duration of
+          a session; only that identifier is stored. This association is held in the
+          server's memory and is deleted at the latest eight hours after your last view;
+          when the service restarts it is briefly written to the server and then carried
+          forward. No recognition beyond this website takes place.
+        </p>
+        <p>
+          No cookies are set. No information is stored on or read from your device —
+          with the single exception of an opt-out marker you set yourself (see below),
+          which is read only in order to honour your objection and is therefore strictly
+          necessary under <span class="legal-ref">Sec. 25 (2) no. 2 TDDDG</span>. Consent under
+          <span class="legal-ref">Sec. 25 (1) TDDDG</span> is therefore not required.
+        </p>
+        <p>
+          The legal basis is <span class="legal-ref">Art. 6 (1) (f) GDPR</span>. The
+          legitimate interest lies in statistically evaluating usage in order to
+          improve the content and operation of the website. This processing serves a
+          purpose of its own and is separate from the processing described in
+          Section 2, which provides the service itself.
+        </p>
+        <p>
+          Aggregated statistics are deleted after 12 months.
+        </p>
+        <p>
+          If your browser sends the "Do Not Track" (DNT) or "Global Privacy Control"
+          (GPC) signal, we treat it as an objection under
+          <span class="legal-ref">Art. 21 GDPR</span>: such requests are discarded on
+          the server and not counted. This requires nothing further from you and also
+          works without JavaScript.
+        </p>
+        <p>
+          Independently of that, you may object to audience measurement here at any
+          time. The setting is stored locally in this browser and applies until you
+          undo it here or clear your browser data.
+        </p>
+        <p id="optout-wrap" hidden>
+          <button type="button" id="optout-toggle" class="btn btn-secondary"></button>
+        </p>
+        <p id="optout-state" role="status"></p>
+        <noscript>
           <p>
-            This website uses GoatCounter to measure how often its pages are visited.
-            It is self-hosted and runs on the same server as this website. Both the
-            counting script and the counting endpoint are served from this domain; no
-            resources are loaded from third parties and no data is passed on to them.
+            Objecting via this button requires JavaScript. Without JavaScript, the DNT
+            or GPC signal described above still applies; alternatively you can block
+            requests to <code>/count</code> in your browser.
           </p>
-          <p>The following data is processed:</p>
-          <ul role="list">
-            <li>Requested page (path) and page title</li>
-            <li>Referring page, if sent by the browser</li>
-            <li>Country of origin, derived from the IP address</li>
-            <li>Browser and operating system type, and screen width</li>
-            <li>A randomly generated session identifier, so that repeat views within one
-                session are not counted more than once</li>
-          </ul>
-          <p>
-            Your IP address and your browser identifier (User-Agent) are not stored in the
-            statistics. They are used solely to determine the country of origin and to
-            associate your views with a randomly generated identifier for the duration of
-            a session; only that identifier is stored. This association is held in the
-            server's memory and is deleted at the latest eight hours after your last view;
-            when the service restarts it is briefly written to the server and then carried
-            forward. No recognition beyond this website takes place.
-          </p>
-          <p>
-            No cookies are set. No information is stored on or read from your device —
-            with the single exception of an opt-out marker you set yourself (see below),
-            which is read only in order to honour your objection and is therefore strictly
-            necessary under <span class="legal-ref">Sec. 25 (2) no. 2 TDDDG</span>. Consent under
-            <span class="legal-ref">Sec. 25 (1) TDDDG</span> is therefore not required.
-          </p>
-          <p>
-            The legal basis is <span class="legal-ref">Art. 6 (1) (f) GDPR</span>. The
-            legitimate interest lies in statistically evaluating usage in order to
-            improve the content and operation of the website. This processing serves a
-            purpose of its own and is separate from the processing described in
-            Section 2, which provides the service itself.
-          </p>
-          <p>
-            Aggregated statistics are deleted after 12 months.
-          </p>
-          <p>
-            If your browser sends the "Do Not Track" (DNT) or "Global Privacy Control"
-            (GPC) signal, we treat it as an objection under
-            <span class="legal-ref">Art. 21 GDPR</span>: such requests are discarded on
-            the server and not counted. This requires nothing further from you and also
-            works without JavaScript.
-          </p>
-          <p>
-            Independently of that, you may object to audience measurement here at any
-            time. The setting is stored locally in this browser and applies until you
-            undo it here or clear your browser data.
-          </p>
-          <p id="optout-wrap" hidden>
-            <button type="button" id="optout-toggle"></button>
-          </p>
-          <p id="optout-state" role="status"></p>
-          <noscript>
-            <p>
-              Objecting via this button requires JavaScript. Without JavaScript, the DNT
-              or GPC signal described above still applies; alternatively you can block
-              requests to <code>/count</code> in your browser.
-            </p>
-          </noscript>
-        </section>
+        </noscript>
+      </section>
 
-        <section aria-labelledby="sec-6">
-          <h2 id="sec-6"><span aria-hidden="true">// </span>6. Data Disclosure to Third Parties &amp; Server Location</h2>
-          <p>
-            The website and the service are hosted by the web hosting provider Hetzner (Hetzner Online GmbH)
-            on servers within the European Union (Finland). A data processing agreement (DPA) pursuant to
-            Art. 28 GDPR has been concluded with Hetzner Online GmbH. Personal data is not transferred to
-            third countries.
-          </p>
-          <p>
-            Data will not be passed on to other third parties unless there is a legal obligation to do so.
-          </p>
-          <p>
-            The geodatabase (GeoLite2) is automatically downloaded weekly from the servers of MaxMind
-            (<a href="https://www.maxmind.com" target="_blank" rel="noopener" aria-label="maxmind.com (opens in a new tab)">maxmind.com</a>).
-            No visitor data is transmitted during this process — only the server IP establishes contact with
-            MaxMind. Individual user requests are not passed on to MaxMind.
-          </p>
-        </section>
+      <section aria-labelledby="sec-6">
+        <h2 id="sec-6">6. Data Disclosure to Third Parties &amp; Server Location</h2>
+        <p>
+          The website and the service are hosted by the web hosting provider Hetzner (Hetzner Online GmbH)
+          on servers within the European Union (Finland). A data processing agreement (DPA) pursuant to
+          Art. 28 GDPR has been concluded with Hetzner Online GmbH. Personal data is not transferred to
+          third countries.
+        </p>
+        <p>
+          Data will not be passed on to other third parties unless there is a legal obligation to do so.
+        </p>
+        <p>
+          The geodatabase (GeoLite2) is automatically downloaded weekly from the servers of MaxMind
+          (<a href="https://www.maxmind.com" target="_blank" rel="noopener" aria-label="maxmind.com (opens in a new tab)">maxmind.com</a>).
+          No visitor data is transmitted during this process — only the server IP establishes contact with
+          MaxMind. Individual user requests are not passed on to MaxMind.
+        </p>
+      </section>
 
-        <section aria-labelledby="sec-7">
-          <h2 id="sec-7"><span aria-hidden="true">// </span>7. Your Rights</h2>
-          <p>
-            You have the following rights against the controller regarding the short-term processing of
-            your full IP address when accessing this page, and regarding the audience measurement
-            described in Section 5:
-          </p>
-          <ul role="list">
-            <li>Right of access (Art. 15 GDPR)</li>
-            <li>Right to rectification (Art. 16 GDPR)</li>
-            <li>Right to erasure (Art. 17 GDPR)</li>
-            <li>Right to restriction of processing (Art. 18 GDPR)</li>
-            <li>Right to data portability (Art. 20 GDPR)</li>
-            <li>Right to object to processing (Art. 21 GDPR)</li>
-          </ul>
-          <p>
-            To exercise your rights, please contact the email address provided in Section 1.
-          </p>
-        </section>
+      <section aria-labelledby="sec-7">
+        <h2 id="sec-7">7. Your Rights</h2>
+        <p>
+          You have the following rights against the controller regarding the short-term processing of
+          your full IP address when accessing this page, and regarding the audience measurement
+          described in Section 5:
+        </p>
+        <ul role="list">
+          <li>Right of access (Art. 15 GDPR)</li>
+          <li>Right to rectification (Art. 16 GDPR)</li>
+          <li>Right to erasure (Art. 17 GDPR)</li>
+          <li>Right to restriction of processing (Art. 18 GDPR)</li>
+          <li>Right to data portability (Art. 20 GDPR)</li>
+          <li>Right to object to processing (Art. 21 GDPR)</li>
+        </ul>
+        <p>
+          To exercise your rights, please contact the email address provided in Section 1.
+        </p>
+      </section>
 
-        <section aria-labelledby="sec-8">
-          <h2 id="sec-8"><span aria-hidden="true">// </span>8. Right to Lodge a Complaint</h2>
-          <p>
-            You have the right to lodge a complaint with a data protection supervisory authority.
-            The authority responsible for the non-public sector in Bavaria is:
-          </p>
-          <p>
-            Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)<br>
-            Promenade 18<br>
-            91522 Ansbach, Germany<br>
-            <a href="https://www.lda.bayern.de" target="_blank" rel="noopener" aria-label="www.lda.bayern.de (opens in a new tab)">www.lda.bayern.de</a>
-          </p>
-        </section>
+      <section aria-labelledby="sec-8">
+        <h2 id="sec-8">8. Right to Lodge a Complaint</h2>
+        <p>
+          You have the right to lodge a complaint with a data protection supervisory authority.
+          The authority responsible for the non-public sector in Bavaria is:
+        </p>
+        <p>
+          Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)<br>
+          Promenade 18<br>
+          91522 Ansbach, Germany<br>
+          <a href="https://www.lda.bayern.de" target="_blank" rel="noopener" aria-label="www.lda.bayern.de (opens in a new tab)">www.lda.bayern.de</a>
+        </p>
+      </section>
 
-      </div>
-    </main>
-  </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <nav class="footer-links" aria-label="Legal">
+      <a href="/impressum.html" lang="de">Impressum</a>
+      <a href="/datenschutz.html" lang="de">Datenschutz</a>
+      <a href="/privacy.html" lang="en">Privacy</a>
+    </nav>
+  </footer>
 
   <!-- Self-hosted GoatCounter: first-party endpoints only, cookieless, no third party. -->
   <script data-goatcounter="/count" async src="/count.js"></script>

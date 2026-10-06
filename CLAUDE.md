@@ -35,9 +35,9 @@ docker compose logs -f nginx
 
 ## Architecture
 
-This is a single FastAPI app (`main.py`) serving a static multi-tool site (`static/*.html`) for `alexander-hagemann.de`. There is no build step or frontend framework — every page is hand-written HTML/CSS/vanilla JS, self-contained (styles inline in a `<style>` block per page), sharing only `static/style.css` for base resets/typography.
+This is a single FastAPI app (`main.py`) serving a static multi-tool site (`static/*.html`) for `alexander-hagemann.de`. There is no build step or frontend framework — every page is hand-written HTML/CSS/vanilla JS. `static/style.css` holds the design tokens and every shared component; each page's `<style>` block holds only page-specific layout and references tokens (no hex). `static/theme.js` drives the light/dark toggle.
 
-**Two tools live behind explicit FastAPI routes** (`/getip` → `static/getip.html`, `/cidr` → `static/cidr.html`); everything else is served by the `StaticFiles` mount at the end of `main.py`. When adding a new tool page, follow this same pattern: add the HTML under `static/`, add a `@app.get("/<name>")` route returning `FileResponse`, and add a tile linking to it from `static/index.html`.
+**Two tools live behind explicit FastAPI routes** (`/getip` → `static/getip.html`, `/cidr` → `static/cidr.html`); everything else is served by the `StaticFiles` mount at the end of `main.py`. When adding a new tool page, follow this same pattern: add the HTML under `static/`, add a `@app.get("/<name>")` route returning `FileResponse`, and add a tile linking to it from `static/index.html`. Include the color-scheme meta, the versioned `style.css?v=N` / `<script defer src="/theme.js?v=N">` references, the top bar and the site footer — copy them from an existing page; `tests/test_theme.py` enforces them.
 
 **IP Lookup (`/ip` endpoint + `getip.html`)** is the one tool with real backend logic, and its design only makes sense together:
 - The site resolves IPv4 and IPv6 *independently* using two DNS subdomains (`ip4.`/`ip6.` — one has only an `A` record, the other only `AAAA`), so a dual-stack visitor gets both addresses from two separate same-origin-restricted requests rather than one ambiguous lookup. `getip.html` hardcodes both subdomain endpoints and fetches both in parallel.
@@ -58,9 +58,12 @@ The tracking snippet on every page uses *relative* `/count` and `/count.js` so a
 
 ## Design constraints (see PRODUCT.md / DESIGN.md for full detail)
 
-This is a deliberately monochrome, ad-free "quiet terminal" aesthetic — not generic SaaS styling:
-- Pure black background, grayscale ink only, zero hue anywhere (one reserved retro accent color is planned but *not yet* in the codebase — don't add color piecemeal).
-- Square corners everywhere (`border-radius: 0`), no shadows — grouping/elevation is conveyed only via 1px borders.
-- Single font family end-to-end: `"Courier New", Courier, monospace`.
-- Every page heading is prefixed with an `aria-hidden` `// `; back-links use an `aria-hidden` `← ` — keep both conventions on new pages.
-- WCAG 2.1 AA is a hard constraint: skip links, `aria-live` on dynamic content, visible focus states, and `prefers-reduced-motion` fallbacks for any animation (e.g. the blinking-cursor loading state) are expected on every new page, not just the existing ones.
+A light-first, conventional utility look that follows the visitor's OS theme:
+- Colors only via the CSS custom properties in `static/style.css`. Light tokens on `:root`; dark tokens repeated under `@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) }` and `:root[data-theme="dark"]`. A new token goes in all three blocks, with its contrast checked.
+- One blue accent; green/amber/red are reserved for status and errors and never carry meaning alone.
+- System fonts only (`--font-sans`, `--font-mono`) — never add `@font-face`, font files, or Google Fonts. Mono is for technical values only.
+- The theme toggle overrides the OS theme for the current page view only. **Do not persist it** (no localStorage/cookies) — deliberate decision, 2026-10-06.
+- 8px card / 6px control radius, at most the one subtle light-theme shadow, no gradients or hover lifts.
+- Inline links are underlined (accent vs body text is below 3:1).
+- `style.css` and `theme.js` are referenced as `?v=N` on every page (cache busting — nginx sends no Cache-Control for them). When either file changes, bump `N` on all pages together; `tests/test_theme.py` checks they agree.
+- WCAG 2.1 AA is a hard constraint: skip links, `aria-live` on dynamic content, visible focus states, visible labels on inputs, and `prefers-reduced-motion` fallbacks for any animation are expected on every page, in both themes.

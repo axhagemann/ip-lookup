@@ -27,6 +27,12 @@ jobs:
 
       - name: Run DevSkim scanner
         uses: microsoft/DevSkim-Action@v1
+        with:
+          # Tests deliberately use loopback addresses and plain-http URLs (local
+          # test servers, SSRF inputs that must be rejected), which DevSkim flags
+          # as debug code / insecure URLs. Docs only describe local dev setup.
+          # Keep the action's defaults (.git, bin) in the list.
+          ignore-globs: "**/.git/**,**/bin/**,**/tests/**,**/docs/**"
 
       - name: Upload DevSkim scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3

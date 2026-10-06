@@ -178,7 +178,26 @@ EOF
 
 You can find your account ID and generate a license key in the [MaxMind portal](https://www.maxmind.com/en/account) under **Services → My License Key**.
 
-### 3. Update domain references
+### 3. Bot-protection retry (optional)
+
+Some sites (allianz.de, for one) sit behind a Cloudflare managed challenge and
+answer the Is It Up? check with a `403` interstitial instead of their homepage.
+The check reports these as **up** either way — a challenge served in 380 ms
+proves DNS, TCP, TLS and HTTP all work — and says a challenge was served.
+
+Setting `UPCHECK_IMPERSONATE=1` in `.env` makes a detected challenge get retried
+once with a browser TLS fingerprint (`curl_cffi`), which sometimes reaches the
+real page and reports that instead. Off by default, because measured against
+allianz.de it only succeeds about half the time, and only on the newest
+fingerprint profile — so the wording of the result would vary between refreshes
+while the verdict, **up**, never changes. `UPCHECK_IMPERSONATE_PROFILE`
+(default `chrome`) picks the profile.
+
+The retry is pinned to the address the check already vetted and never follows
+redirects, so it cannot become a way around the SSRF checks in `upcheck.py`.
+If it fails for any reason, the original result stands.
+
+### 4. Update domain references
 
 Replace `yourdomain.com` in:
 
