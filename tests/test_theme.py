@@ -17,7 +17,7 @@ CSS = (STATIC / "style.css").read_text(encoding="utf-8")
 
 # Pages already moved to the new design system. Grows task by task until it
 # is every page on disk (see test_every_page_is_themed, added last).
-THEMED: list[str] = []
+THEMED: list[str] = ["datenschutz.html", "impressum.html", "index.html", "privacy.html"]
 
 THEMED_TOKENS = (
     "--bg",
@@ -171,3 +171,15 @@ def test_page_styles_use_tokens_only(themed):
     _, html = themed
     for block in STYLE_BLOCK.findall(html):
         assert not HEX.search(block), HEX.search(block).group(0)
+
+
+def test_german_pages_label_the_toggle_in_german():
+    for name in ("impressum.html", "datenschutz.html"):
+        html = page_html(name)
+        assert '<span class="visually-hidden">Dunkelmodus</span>' in html
+        assert 'aria-label="Rechtliches"' in html
+
+
+def test_privacy_opt_out_uses_shared_button():
+    for name in ("datenschutz.html", "privacy.html"):
+        assert '<button type="button" id="optout-toggle" class="btn btn-secondary">' in page_html(name)
