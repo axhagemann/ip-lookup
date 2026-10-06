@@ -26,6 +26,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     asyncio.create_task(geo.retry_readers())
+    asyncio.create_task(geo.purge_cache())
     yield
 
 

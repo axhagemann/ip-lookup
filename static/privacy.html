@@ -51,8 +51,8 @@
         <p>
           This assignment is carried out exclusively using a database stored locally on the server
           (MaxMind GeoLite2). Your IP address is not transmitted to MaxMind or any other third parties.
-          The result is cached in the server's memory for up to one hour so that repeat requests do not
-          need to be looked up again.
+          Your IP address is cached together with the result in the server's memory for up to one hour so
+          that repeat requests do not need to be looked up again; after that, both are discarded.
         </p>
         <p>
           The lookup is also available as an API and can be called from other websites. If you visit
@@ -74,7 +74,9 @@
           With every request, data is automatically stored in server log files:
         </p>
         <ul role="list">
-          <li>IP address</li>
+          <li>IP address – in shortened form (IPv4: last octet removed, IPv6: truncated to the
+            first 48 bits); only in the event of technical errors can the full IP address appear
+            in the web server's error log</li>
           <li>Requested URL and HTTP method</li>
           <li>HTTP status code and response time</li>
           <li>Timestamp</li>
@@ -193,8 +195,8 @@
           <li>Right to rectification (Art. 16 GDPR)</li>
           <li>Right to erasure (Art. 17 GDPR)</li>
           <li>Right to restriction of processing (Art. 18 GDPR)</li>
-          <li>Right to data portability (Art. 20 GDPR)</li>
-          <li>Right to object to processing (Art. 21 GDPR)</li>
+          <li>Right to object to processing on grounds relating to your particular situation
+            (Art. 21 GDPR)</li>
         </ul>
         <p>
           To exercise your rights, please contact the email address provided in Section 1.

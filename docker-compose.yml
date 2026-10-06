@@ -17,11 +17,16 @@ services:
       - UPCHECK_IMPERSONATE=${UPCHECK_IMPERSONATE:-0}
     volumes:
       - geoip_data:/app/geoip
+    # logrotate.conf (installed by bootstrap.sh) is the only thing that keeps
+    # log history, so the privacy policy's "deleted after 7 days" holds. Docker
+    # must not keep its own rotated files: they'd be named *-json.log.1, which
+    # logrotate's *.log glob never matches, so they'd outlive the 7 days.
+    # max-file 1 makes max-size a plain cap — the file is truncated, not kept.
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
-        max-file: "7"
+        max-file: "1"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 5s
@@ -37,7 +42,7 @@ services:
       driver: "json-file"
       options:
         max-size: "10m"
-        max-file: "7"
+        max-file: "1"
     volumes:
       - ./nginx.docker.conf:/etc/nginx/conf.d/default.conf:ro
       - ./certbot/www:/var/www/certbot:ro
@@ -64,7 +69,7 @@ services:
       driver: "json-file"
       options:
         max-size: "10m"
-        max-file: "7"
+        max-file: "1"
 
   certbot:
     image: certbot/certbot

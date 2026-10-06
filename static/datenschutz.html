@@ -52,9 +52,10 @@
         <p>
           Diese Zuordnung erfolgt ausschließlich anhand einer lokal auf dem Server
           gespeicherten Datenbank (MaxMind GeoLite2). Ihre IP-Adresse wird nicht
-          an MaxMind oder andere Dritte übermittelt. Das Ergebnis wird im
-          Arbeitsspeicher des Servers bis zu einer Stunde zwischengespeichert, damit
-          wiederholte Abrufe nicht erneut nachgeschlagen werden müssen.
+          an MaxMind oder andere Dritte übermittelt. Ihre IP-Adresse wird zusammen mit
+          dem Ergebnis im Arbeitsspeicher des Servers bis zu einer Stunde
+          zwischengespeichert, damit wiederholte Abrufe nicht erneut nachgeschlagen
+          werden müssen; danach wird beides verworfen.
         </p>
         <p>
           Die Abfrage steht auch als Programmierschnittstelle zur Verfügung und kann
@@ -79,7 +80,9 @@
           Bei jeder Anfrage werden automatisch Daten in Serverprotokollen (Logfiles) gespeichert:
         </p>
         <ul role="list">
-          <li>IP-Adresse</li>
+          <li>IP-Adresse – in gekürzter Form (IPv4: letzte Stelle entfernt, IPv6: auf die
+            ersten 48 Bit gekürzt); nur bei technischen Fehlern kann die vollständige
+            IP-Adresse im Fehlerprotokoll des Webservers erscheinen</li>
           <li>Aufgerufene URL und HTTP-Methode</li>
           <li>HTTP-Statuscode und Antwortzeit</li>
           <li>Zeitstempel</li>
@@ -209,8 +212,8 @@
           <li>Berichtigung unrichtiger Daten (Art. 16 DSGVO)</li>
           <li>Löschung Ihrer Daten (Art. 17 DSGVO)</li>
           <li>Einschränkung der Verarbeitung (Art. 18 DSGVO)</li>
-          <li>Datenübertragbarkeit (Art. 20 DSGVO)</li>
-          <li>Widerspruch gegen die Verarbeitung (Art. 21 DSGVO)</li>
+          <li>Widerspruch gegen die Verarbeitung aus Gründen, die sich aus Ihrer besonderen
+            Situation ergeben (Art. 21 DSGVO)</li>
         </ul>
         <p>
           Zur Geltendmachung Ihrer Rechte wenden Sie sich an die unter Punkt 1 genannte

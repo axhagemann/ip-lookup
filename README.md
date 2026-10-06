@@ -95,12 +95,15 @@ Location resolution uses the country-level database compiled into GoatCounter, n
 
 ### Backups
 
-The SQLite database lives in the `goatcounter_data` named volume:
+The SQLite database lives in the `goatcounter_data` named volume. Back it up with:
 
 ```bash
-docker run --rm -v ip-lookup_goatcounter_data:/data -v "$PWD":/backup alpine \
-  tar czf /backup/goatcounter-$(date +%F).tar.gz -C /data .
+./backup-goatcounter.sh            # writes backups/goatcounter-YYYY-MM-DD.sqlite3.gz
 ```
+
+Don't tar the volume directly: the `store` table can hold the session table's full IPs (see the session caveat above), which the privacy policies don't cover. The script snapshots with `VACUUM INTO`, empties `store` in the copy and vacuums it again, so the backup holds statistics only. It also deletes backups older than `KEEP_DAYS` (default 30), so backups never stretch the 12-month retention.
+
+To restore, stop the container, gunzip the backup over `db.sqlite3` in the volume (removing any `-wal`/`-shm` files), and start it again.
 
 ### Upgrades
 

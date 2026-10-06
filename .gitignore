@@ -12,3 +12,6 @@ __pycache__/
 
 # Impeccable local hook cache (session state, not project config)
 .impeccable/hook.cache.json
+
+# GoatCounter backups (backup-goatcounter.sh) — visitor statistics, never commit
+backups/

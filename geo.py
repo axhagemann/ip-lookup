@@ -20,6 +20,7 @@ logger = logging.getLogger("ipinfo")
 _geo_cache: dict[str, tuple[dict, float]] = {}
 _GEO_TTL = 3600  # seconds before a cached result expires
 _GEO_MAX = 1000  # max entries to keep in memory
+_PURGE_INTERVAL = 60  # seconds between sweeps of expired entries
 
 _city_reader: geoip2.database.Reader | None = None
 _asn_reader: geoip2.database.Reader | None = None
@@ -58,6 +59,22 @@ def _cache_set(ip: str, data: dict) -> None:
         oldest = min(_geo_cache, key=lambda k: _geo_cache[k][1])
         del _geo_cache[oldest]
     _geo_cache[ip] = (data, time())
+
+
+def _purge_expired() -> None:
+    # Entries otherwise only expire when the same IP asks again, so an IP that
+    # never returns would sit in memory indefinitely. Dropping anything that
+    # would expire before the next sweep keeps every cached IP under _GEO_TTL,
+    # which is the "up to one hour" the privacy policies promise.
+    cutoff = time() - _GEO_TTL + _PURGE_INTERVAL
+    for ip in [ip for ip, (_, ts) in _geo_cache.items() if ts <= cutoff]:
+        del _geo_cache[ip]
+
+
+async def purge_cache():
+    while True:
+        await asyncio.sleep(_PURGE_INTERVAL)
+        _purge_expired()
 
 
 def _geo_lookup(ip: str) -> dict:

@@ -56,3 +56,18 @@ def test_lookup_caches_empty_result(monkeypatch):
     assert geo.lookup("203.0.113.5") == {}
     assert geo.lookup("203.0.113.5") == {}
     assert calls == ["203.0.113.5"]
+
+
+def test_purge_drops_entries_that_would_expire_before_next_sweep(monkeypatch):
+    """The privacy policies promise a cached IP is gone within an hour, even if
+    it never makes another request — so the sweep must not leave anything that
+    would pass _GEO_TTL before the following sweep runs."""
+    monkeypatch.setattr(geo, "time", lambda: 1000.0)
+    geo._cache_set("203.0.113.6", {})
+    geo._cache_set("203.0.113.7", {})
+    geo._geo_cache["203.0.113.6"] = ({}, 1000.0 - geo._GEO_TTL + geo._PURGE_INTERVAL)
+
+    geo._purge_expired()
+
+    assert "203.0.113.6" not in geo._geo_cache
+    assert "203.0.113.7" in geo._geo_cache
