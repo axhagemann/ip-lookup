@@ -17,7 +17,15 @@ CSS = (STATIC / "style.css").read_text(encoding="utf-8")
 
 # Pages already moved to the new design system. Grows task by task until it
 # is every page on disk (see test_every_page_is_themed, added last).
-THEMED: list[str] = ["cidr.html", "datenschutz.html", "getip.html", "impressum.html", "index.html", "privacy.html"]
+THEMED: list[str] = [
+    "cidr.html",
+    "datenschutz.html",
+    "getip.html",
+    "impressum.html",
+    "index.html",
+    "privacy.html",
+    "up.html",
+]
 
 THEMED_TOKENS = (
     "--bg",
@@ -211,3 +219,11 @@ def test_cidr_keeps_script_hooks_and_labels():
     assert '<label for="prefix-input">' in html
     assert '<p class="error" id="error-msg" role="alert"></p>' in html
     assert '<script src="/cidr-logic.js"></script>' in html
+
+
+def test_up_has_visible_label_and_status_pill():
+    html = page_html("up.html")
+    assert '<label for="url">' in html
+    assert 'aria-label="URL to check"' not in html  # replaced by the visible label
+    assert 'badge.className = "status status-" + status;' in html
+    assert '<div class="result" id="result" aria-live="polite" hidden>' in html

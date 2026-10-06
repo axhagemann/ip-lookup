@@ -308,6 +308,8 @@ input::placeholder { color: var(--text-muted); opacity: 1; }
 .status-up { color: var(--ok); background: var(--ok-bg); }
 .status-degraded { color: var(--warn); background: var(--warn-bg); }
 .status-down { color: var(--err); background: var(--err-bg); }
+.status-invalid,
+.status-blocked { color: var(--text-muted); background: var(--neutral-bg); }
 
 /* Loading: the text stays at full contrast; only a decorative dot pulses. */
 .loading { color: var(--text-muted); }

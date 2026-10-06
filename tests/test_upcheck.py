@@ -837,7 +837,8 @@ class TestUpPage:
     def test_knows_blocked_status_and_redirect_stage(self):
         assert 'blocked: "Can\'t be checked"' in self.html
         assert 'redirect: "Redirect"' in self.html
-        assert ".status-blocked" in self.html
+        # Status styles live in the shared stylesheet since the light/dark redesign.
+        assert ".status-blocked" in UP_HTML.with_name("style.css").read_text(encoding="utf-8")
 
     def test_says_up_front_that_only_the_domain_is_checked(self):
         assert "Only the domain is checked" in self.html
