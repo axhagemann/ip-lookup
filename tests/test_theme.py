@@ -130,10 +130,33 @@ def test_page_declares_color_scheme(themed):
     assert '<meta name="color-scheme" content="light dark"' in html
 
 
+ASSET_REF = re.compile(r'(?:href|src)="/(style\.css|theme\.js)\?v=([\w.-]+)"')
+
+
 def test_page_loads_stylesheet_and_deferred_theme_js(themed):
     _, html = themed
-    assert '<link rel="stylesheet" href="/style.css" />' in html
-    assert '<script defer src="/theme.js"></script>' in html
+    assert re.search(r'<link rel="stylesheet" href="/style\.css\?v=[\w.-]+" />', html)
+    assert re.search(r'<script defer src="/theme\.js\?v=[\w.-]+"></script>', html)
+
+
+def test_shared_assets_carry_one_cache_busting_version():
+    # Every page depends on style.css; a stale cached copy after a deploy would
+    # pair new markup with old styles. Bump ?v= on every page when they change.
+    versions = {v for name in THEMED for _, v in ASSET_REF.findall(page_html(name))}
+    assert len(versions) == 1, versions
+
+
+@pytest.mark.parametrize(
+    "path", ["/", "/getip", "/cidr", "/up", "/impressum.html", "/datenschutz.html", "/privacy.html"]
+)
+def test_routes_serve_themed_pages_and_their_assets(client, path):
+    res = client.get(path, headers={"User-Agent": "Mozilla/5.0"})
+    assert res.status_code == 200
+    assert 'class="theme-toggle"' in res.text
+    refs = ASSET_REF.findall(res.text)
+    assert sorted(asset for asset, _ in refs) == ["style.css", "theme.js"]
+    for asset, version in refs:
+        assert client.get(f"/{asset}?v={version}").status_code == 200
 
 
 def test_page_has_topbar_with_home_link(themed):
