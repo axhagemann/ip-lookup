@@ -222,3 +222,12 @@ def test_up_has_visible_label_and_status_pill():
 
 def test_every_page_is_themed():
     assert len(THEMED) == 7
+
+
+def test_cidr_prefix_input_can_shrink_inside_its_wrapper():
+    # A flex child keeps its intrinsic width unless min-width is lifted, which
+    # would push the prefix field past its column (WCAG 1.4.10 Reflow).
+    css = STYLE_BLOCK.findall(page_html("cidr.html"))[0]
+    rule = css.split(".prefix-input-wrap input {")[1].split("}")[0]
+    assert "min-width: 0" in rule
+    assert "flex: 1" in rule
