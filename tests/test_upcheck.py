@@ -316,7 +316,7 @@ class TestImpersonatedStatus:
 
     def test_pin_uses_the_explicit_port_when_there_is_one(self, monkeypatch):
         _fake_curl_module(monkeypatch, _FakeCurlResponse(200, {"content-type": "text/html"}))
-        _impersonate("http://www.allianz.de:8080/", "8.8.8.8")
+        _impersonate("https://www.allianz.de:8080/", "8.8.8.8")
         assert _FakeSession.last.curl.options[upcheck.CurlOpt.RESOLVE] == [b"www.allianz.de:8080:8.8.8.8"]
 
 
