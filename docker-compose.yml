@@ -1,5 +1,11 @@
 services:
   app:
+    # Built and pushed by .github/workflows/image.yml on every push to main;
+    # the server pulls it (`docker compose pull app && docker compose up -d
+    # --no-build` — without --no-build a failed pull silently builds instead).
+    # `build: .` stays so a local `docker compose up --build` still works. Set
+    # APP_TAG=sha-<7 chars> in .env to pin or roll back a release.
+    image: ghcr.io/axhagemann/ip-lookup:${APP_TAG:-latest}
     build: .
     restart: unless-stopped
     # Defence in depth behind the capped body reads in upcheck.py: if a checked

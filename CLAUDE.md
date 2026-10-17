@@ -23,7 +23,7 @@ node --test         # tests/cidr_logic.test.js — exercises static/cidr-logic.j
 
 `static/cidr-logic.js` is a UMD-style module: `<script src="/cidr-logic.js">` attaches `window.CidrCalc` in the browser, `require("../static/cidr-logic.js")` gets a CommonJS export in tests — same file, no build step, no bundler. If you touch the CIDR math, edit that file (not inline `<script>` in `cidr.html`) so both the page and the Node tests stay in sync.
 
-Docker (mirrors production):
+Docker (mirrors production — the server pulls the `app` image from `ghcr.io/axhagemann/ip-lookup`, built by `.github/workflows/image.yml`; locally, `--build` builds it from source instead):
 
 ```bash
 docker compose up -d --build

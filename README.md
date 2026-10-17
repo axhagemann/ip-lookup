@@ -227,10 +227,25 @@ sudo netfilter-persistent save
 
 ### Subsequent deploys
 
+Every push to `main` runs the tests and, if they pass, pushes the app image to `ghcr.io/axhagemann/ip-lookup` (`.github/workflows/image.yml`). Wait for that workflow to go green, then on the server:
+
 ```bash
-git pull
-docker compose up -d --build
+git pull                     # nginx config and compose file still come from the repo
+docker compose pull app && docker compose up -d --no-build
 ```
+
+`docker compose up -d` on its own does not re-pull an image it already has, so don't skip the `pull`. Keep the `&&` and `--no-build`: because `app` also has `build: .`, a failed pull (private package, GHCR down, wrong tag) would otherwise make `up` quietly build the local checkout and tag it as the CI image. To build on the server deliberately (for example while GitHub is down), `docker compose up -d --build` still works.
+
+### Rolling back
+
+Each build is also tagged `sha-<first 7 chars of the commit>`. Pin one in `.env` and restart:
+
+```bash
+echo 'APP_TAG=sha-1a2b3c4' >> .env
+docker compose pull app && docker compose up -d --no-build
+```
+
+A mistyped tag then fails at the pull instead of building the current code under the old tag. Remove the `APP_TAG` line and run the same command to go back to `latest`.
 
 ### Common commands
 
