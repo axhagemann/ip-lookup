@@ -79,7 +79,7 @@ Under **Settings → Data collection**, the checkboxes must match what the priva
 | Toggle | Setting | Why |
 |---|---|---|
 | Individual pageviews | **off** (default) | Keeps the DB aggregate-only |
-| Sessions | on (default) | Unique-visit counting; see the caveat below |
+| Sessions | **off** | Unique-visit counting; see the caveat below |
 | Referrer | on (default) | Documented in the policy |
 | User-Agent | on (default) | Browser/OS class only — the raw header is not stored |
 | Size | on (default) | Documented in the policy |
