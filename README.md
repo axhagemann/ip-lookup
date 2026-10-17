@@ -227,12 +227,28 @@ sudo netfilter-persistent save
 
 ### Subsequent deploys
 
-Every push to `main` runs the tests and, if they pass, pushes the app image to `ghcr.io/axhagemann/ip-lookup` (`.github/workflows/image.yml`). Wait for that workflow to go green, then on the server:
+Every push to `main` runs the tests and, if they pass, pushes the app image to `ghcr.io/axhagemann/ip-lookup` as `latest` and `sha-<commit>` (`.github/workflows/image.yml`). Pushes to other branches and pull requests only run the tests and a build; nothing is pushed.
 
-```bash
-git pull                     # nginx config and compose file still come from the repo
-docker compose pull app && docker compose up -d --no-build
-```
+1. Push your code to `main`.
+
+2. Check that the image build succeeded in GitHub Actions (**Image** workflow).
+
+3. On the server, pull and switch:
+
+   ```bash
+   cd ~/ip-lookup
+   git pull                     # nginx config and compose file still come from the repo
+   docker compose pull app && docker compose up -d --no-build
+   ```
+
+4. Optionally, check that the running image was built from the commit you pushed (the two hashes should match):
+
+   ```bash
+   docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' $(docker compose ps -q app)
+   git rev-parse HEAD
+   ```
+
+Only `main.py`, `geo.py`, `upcheck.py`, `requirements.txt` and `static/` are in the image. `nginx.docker.conf` is mounted from the repo, so `git pull` is enough for it, but `up -d` doesn't notice changes inside a mounted file: run `docker compose restart nginx` afterwards. Changes to `docker-compose.yml` are applied by `up -d`.
 
 `docker compose up -d` on its own does not re-pull an image it already has, so don't skip the `pull`. Keep the `&&` and `--no-build`: because `app` also has `build: .`, a failed pull (private package, GHCR down, wrong tag) would otherwise make `up` quietly build the local checkout and tag it as the CI image. To build on the server deliberately (for example while GitHub is down), `docker compose up -d --build` still works.
 
