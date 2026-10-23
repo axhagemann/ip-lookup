@@ -1,3 +1,5 @@
+[![Image](https://github.com/axhagemann/ip-lookup/actions/workflows/image.yml/badge.svg)](https://github.com/axhagemann/ip-lookup/actions/workflows/image.yml)
+
 # Personal Tools
 
 A self-hosted collection of small network utilities, served as a single FastAPI + static-site app.
