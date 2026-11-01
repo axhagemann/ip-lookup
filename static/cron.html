@@ -149,7 +149,7 @@
 
   <script src="/cron-logic.js"></script>
   <script>
-    const { FLAVOURS, getFlavour, parse, nextRuns, explain, convert, switchFlavour, toBuilder, fromBuilder, builderModes } = CronCalc;
+    const { FLAVOURS, getFlavour, parse, nextRuns, explain, convert, switchFlavour, toBuilder, fromBuilder, builderModes, pairDayFields } = CronCalc;
 
     const flavourSelect = document.getElementById("flavour-select");
     const targetSelect = document.getElementById("target-select");
@@ -293,10 +293,13 @@
 
     const boundsOf = (flavour, name) => (name === "year" ? flavour.yearRange : BOUNDS[name]);
 
+    // A useful first interval for "Every N" (1 would just mean "every").
+    const DEFAULT_INTERVAL = { second: 15, minute: 5, hour: 2, dom: 2, month: 3, dow: 2, year: 2 };
+
     function defaultFor(mode, name, flavour) {
       const [min, max] = boundsOf(flavour, name);
       switch (mode) {
-        case "step": return { mode, start: min, step: 1 };
+        case "step": return { mode, start: min, step: DEFAULT_INTERVAL[name] || 2 };
         case "specific": return { mode, values: [name === "dow" ? 1 : min] };
         case "range": return { mode, from: min, to: max };
         case "last": return name === "dow" ? { mode, dow: 5 } : { mode, offset: 0 };
@@ -503,10 +506,12 @@
       }
     }
 
-    // Which field a parse message is about ("Field 2 (hour): ..."); else the edited one.
+    // Which field a parse message is about ("Field 2 (hour): ..."); the "?" rule
+    // concerns the two day fields; otherwise the edited one.
     function errorFieldFor(message, fallback) {
       const m = /^Field \d+ \(([^)]+)\)/.exec(message);
       if (m) for (const n of Object.keys(FIELD_WORDS)) if (FIELD_WORDS[n] === m[1]) return n;
+      if (/day of month and day of week/.test(message)) return fallback === "dow" ? "dow" : "dom";
       return fallback;
     }
 
@@ -521,12 +526,33 @@
       const target = errorFieldFor(message, name);
       const set = builderBody.querySelector('.builder-field[data-f="' + target + '"]');
       if (!set) return;
-      set.querySelector(".error").textContent = FIELD_LABELS[target] + ": " + message.replace(/^Field \d+ \([^)]*\):\s*/, "");
+      // The "?" rule in builder terms: which control to change, not which text to type.
+      const text = /day of month and day of week/.test(message)
+        ? getFlavour(modelFlavour).label + " needs \u201cNo specific value (?)\u201d in exactly one of Day of month and Day of week. Set one of them to \u201cNo specific value (?)\u201d and the other to the days you want."
+        : FIELD_LABELS[target] + ": " + message.replace(/^Field \d+ \([^)]*\):\s*/, "");
+      set.querySelector(".error").textContent = text;
       for (const c of set.querySelectorAll("[data-f]")) c.setAttribute("aria-invalid", "true");
     }
 
+    // Shown in the other day field when the builder sets it to "?" for the user.
+    function showPairNote(field, flavour) {
+      const set = builderBody.querySelector('.builder-field[data-f="' + field + '"]');
+      if (!set) return "";
+      const text = FIELD_LABELS[field] + " was set to \u201cNo specific value (?)\u201d: " + flavour.label +
+        " needs ? in exactly one of day of month and day of week.";
+      const note = document.createElement("p");
+      note.className = "note pair-note";
+      note.textContent = text;
+      set.appendChild(note);
+      return text;
+    }
+
+    function clearPairNotes() {
+      for (const n of builderBody.querySelectorAll(".pair-note")) n.remove();
+    }
+
     // Model -> expression box -> normal update. Garbage never reaches the box.
-    function applyModel(name) {
+    function applyModel(name, pairNote) {
       clearTimeout(refusalTimer);
       switchWarnings.replaceChildren();
       switchWarnings.hidden = true;
@@ -545,6 +571,7 @@
       clearFieldErrors();
       exprInput.value = text;
       update();
+      if (pairNote) resultStatus.textContent = pairNote + " " + explanation.textContent;
     }
 
     builderBody.addEventListener("input", (e) => {
@@ -552,22 +579,24 @@
       const name = el.dataset && el.dataset.f;
       if (!model || !name) return;
       const flavour = getFlavour(modelFlavour);
+      let pairNote = "";
       if (el.dataset.k === "mode") {
         model[name] = defaultFor(el.value, name, flavour);
         // Quartz/AWS want exactly one of day-of-month and day-of-week as "?".
-        if (flavour.question === "required" && (name === "dom" || name === "dow") && el.value !== "none") {
-          const other = name === "dom" ? "dow" : "dom";
-          if (model[other].mode === "every") model[other] = { mode: "none" };
-        }
+        const other = name === "dom" ? "dow" : name === "dow" ? "dom" : null;
+        const otherBefore = other && model[other].mode;
+        model = pairDayFields(model, name, flavour.id);
         renderBuilder();
+        if (other && otherBefore !== "none" && model[other].mode === "none") pairNote = showPairNote(other, flavour);
         const again = document.getElementById("b-" + name + "-mode");
         if (again) again.focus();
       } else {
         // An emptied or half-typed number is still being edited; Number("") would be 0.
         if (el.type === "number" && (el.value === "" || el.validity.badInput)) return;
+        clearPairNotes();
         model[name] = collect(el.closest("fieldset.builder-field"), name, model[name].mode);
       }
-      applyModel(name);
+      applyModel(name, pairNote);
     });
 
     // ---- Convert -------------------------------------------------------

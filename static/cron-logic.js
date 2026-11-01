@@ -190,7 +190,7 @@
     for (const ch of s) {
       pos++;
       if (!ALLOWED.test(ch)) {
-        throw new CronError("Unsupported character " + describeChar(ch) + " at position " + pos + ".");
+        throw new CronError("Unsupported character " + describeChar(ch) + " at position " + pos + "; remove it.");
       }
     }
   }
@@ -248,21 +248,22 @@
     const fail = (msg) => new CronError(where + msg, name);
     const b = bounds(name, flavour);
     const max = naturalMax(name, flavour, b);
-    const rangeText = b[0] + "–" + b[1];
     const nameInfo = names(name, flavour);
     const isDay = name === "dom" || name === "dow";
 
+    const allowed = "use a number from " + b[0] + " to " + b[1] + (nameInfo ? ", a name such as " + (name === "month" ? "JAN" : "MON") : "") + ", or *";
+    const invalid = (txt) => fail('invalid value "' + echo(txt) + '"; ' + allowed + ".");
     const number = (txt) => {
       if (/^[0-9]+$/.test(txt)) {
-        if (txt.length > MAX_DIGITS) throw fail("number " + echo(txt) + " is too long.");
+        if (txt.length > MAX_DIGITS) throw fail("number " + echo(txt) + " is too long; use a value from " + b[0] + " to " + b[1] + ".");
         return Number(txt);
       }
       const i = nameInfo ? nameInfo.list.indexOf(txt.toUpperCase()) : -1;
       if (i >= 0) return i + nameInfo.offset;
-      throw fail('invalid value "' + echo(txt) + '".');
+      throw invalid(txt);
     };
-    const inRange = (v, txt, lo = b[0], hi = b[1], text = rangeText) => {
-      if (v < lo || v > hi) throw fail(echo(txt) + " is out of range " + text + ".");
+    const inRange = (v, txt, lo = b[0], hi = b[1]) => {
+      if (v < lo || v > hi) throw fail(echo(txt) + " is too " + (v < lo ? "small" : "large") + "; use a value from " + lo + " to " + hi + ".");
       return v;
     };
     const dowNative = (txt) => inRange(number(txt), txt);
@@ -286,21 +287,24 @@
     const stepHi = monSteps ? 7 : max;
 
     if (raw === "?") {
-      if (!isDay) throw fail("? is only allowed in day of month and day of week.");
-      if (flavour.question === "none") throw fail("? is not supported by " + flavour.label + ".");
+      if (!isDay) throw fail("? is only allowed in day of month and day of week; use * here.");
+      if (flavour.question === "none") throw fail("? is not supported by " + flavour.label + "; use * instead.");
       return finish(full());
     }
 
     const items = raw.split(",");
-    if (items.length > MAX_ITEMS) throw fail("too many values (max " + MAX_ITEMS + ").");
+    if (items.length > MAX_ITEMS) throw fail("too many values (max " + MAX_ITEMS + "); use a range such as 1-10 instead.");
 
     const upper = raw.toUpperCase();
     const looksSpecial =
       (name === "dom" && !raw.includes("/") && /[LW]/.test(upper)) ||
       (name === "dow" && (raw.includes("#") || (upper.endsWith("L") && !raw.includes("/"))));
     if (looksSpecial) {
-      if (!flavour.specials) throw fail(echo(raw) + " is not supported by " + flavour.label + ".");
-      if (items.length > 1) throw fail(echo(raw) + " can't be combined with other values.");
+      if (!flavour.specials) {
+        const withSpecials = joinList(FLAVOURS.filter((f) => f.specials).map((f) => f.label));
+        throw fail(echo(raw) + " is not supported by " + flavour.label + "; L, W and # only work in " + withSpecials + ".");
+      }
+      if (items.length > 1) throw fail(echo(raw) + " can't be combined with other values; use it on its own.");
       return finish([], parseSpecial(raw, upper));
     }
 
@@ -310,28 +314,28 @@
         if (up === "LW") return { type: "lastWeekday" };
         let m = /^L-([0-9]+)$/.exec(up);
         if (m) {
-          const offset = inRange(number(m[1]), m[1], 1, 30, "1–30");
+          const offset = inRange(number(m[1]), m[1], 1, 30);
           return { type: "last", offset };
         }
         m = /^([0-9]+)W$/.exec(up);
-        if (m) return { type: "nearestWeekday", day: inRange(number(m[1]), m[1], 1, 31, "1–31") };
-        throw fail('invalid value "' + echo(text) + '".');
+        if (m) return { type: "nearestWeekday", day: inRange(number(m[1]), m[1], 1, 31) };
+        throw invalid(text);
       }
       const hash = text.indexOf("#");
       if (hash >= 0) {
         const nthTxt = text.slice(hash + 1);
         const dow = dowNative(text.slice(0, hash));
-        const nth = inRange(number(nthTxt), nthTxt, 1, 5, "1–5");
+        const nth = inRange(number(nthTxt), nthTxt, 1, 5);
         return { type: "nthDow", dow: toCanonicalDow(dow, flavour), nth };
       }
       const head = text.slice(0, -1);
-      if (head === "") throw fail('invalid value "' + echo(text) + '".');
+      if (head === "") throw invalid(text);
       return { type: "lastDow", dow: toCanonicalDow(dowNative(head), flavour) };
     }
 
     const values = [];
     for (const item of items) {
-      if (item === "") throw fail("empty value in list.");
+      if (item === "") throw fail("empty value in list; remove the extra comma.");
       const slash = item.indexOf("/");
       let step = 1;
       let stepGiven = false;
@@ -339,24 +343,24 @@
       if (slash >= 0) {
         base = item.slice(0, slash);
         const stepTxt = item.slice(slash + 1);
-        if (!/^[0-9]+$/.test(stepTxt)) throw fail('invalid step "' + echo(stepTxt) + '".');
+        if (!/^[0-9]+$/.test(stepTxt)) throw fail('invalid step "' + echo(stepTxt) + '"; the part after / must be a number, e.g. */5.');
         step = number(stepTxt);
-        if (step < 1) throw fail("step must be at least 1.");
+        if (step < 1) throw fail("step must be at least 1, e.g. */5.");
         stepGiven = true;
       }
 
       if (base === "*" || base === "?") {
-        if (base === "?") throw fail('invalid value "' + echo(item) + '".');
+        if (base === "?") throw invalid(item);
         values.push(...range(stepLo, stepHi, step));
         continue;
       }
 
       const parts = base.split("-");
-      if (parts.length > 2) throw fail('invalid value "' + echo(item) + '".');
+      if (parts.length > 2) throw invalid(item);
       if (parts.length === 2) {
         const lo = inRange(number(parts[0]), parts[0]);
         const hi = inRange(number(parts[1]), parts[1]);
-        if (lo > hi) throw fail("range " + echo(base) + " starts after it ends.");
+        if (lo > hi) throw fail("range " + echo(base) + " starts after it ends; write it as " + echo(parts[1] + "-" + parts[0]) + ".");
         values.push(...range(lo, hi, step));
         continue;
       }
@@ -388,13 +392,21 @@
 
   function parseMacro(text, flavour) {
     const tokens = splitFields(text);
-    if (tokens.length > 1) throw new CronError("A macro can't be combined with other fields.");
+    if (tokens.length > 1) throw new CronError("A macro can't be combined with other fields; use it on its own, e.g. @daily.");
     const macro = text.toLowerCase();
+    // How @daily looks in this flavour, as an example of writing the fields out.
+    const writtenOut = (m) => convert(m, "unix", flavour.id).expression;
     if (!MACROS_ALL.includes(macro) && macro !== "@reboot") {
-      throw new CronError('Unknown macro "' + echo(text) + '".');
+      if (flavour.macros.length === 0) {
+        throw new CronError('Unknown macro "' + echo(text) + '"; ' + flavour.label + " has no macros, so write out the fields, e.g. " + writtenOut("@daily") + ".");
+      }
+      throw new CronError('Unknown macro "' + echo(text) + '"; use one of ' + joinList(flavour.macros, "or") + ".");
     }
     if (!flavour.macros.includes(macro)) {
-      throw new CronError(macro + " is not supported by " + flavour.label + ".");
+      if (macro === "@reboot") {
+        throw new CronError("@reboot is not supported by " + flavour.label + "; it only runs on a schedule, not at startup.");
+      }
+      throw new CronError(macro + " is not supported by " + flavour.label + "; write it as " + writtenOut(macro) + " instead.");
     }
     const fields = {};
     for (const n of Object.keys(FIELD_LABELS)) fields[n] = null;
@@ -403,6 +415,18 @@
     const cron = parseFieldList(splitFields(expanded), flavour);
     cron.macro = macro;
     return cron;
+  }
+
+  // The typed fields with "?" moved so exactly one day field has it: an open day
+  // field takes the "?", otherwise day of month does; "?" on both becomes "*" in day of month.
+  function questionFix(tokens, flavour) {
+    const out = tokens.slice();
+    const dom = flavour.fields.indexOf("dom");
+    const dow = flavour.fields.indexOf("dow");
+    if (out[dom] === "?" && out[dow] === "?") out[dom] = "*";
+    else if (out[dow] === "*") out[dow] = "?";
+    else out[dom] = "?";
+    return out.join(" ");
   }
 
   function parseFieldList(tokens, flavour) {
@@ -417,9 +441,26 @@
       fields.year = { raw: "*", star: true, question: false, values: range(lo, hi, 1), special: null };
     }
     if (flavour.question === "required" && fields.dom.question === fields.dow.question) {
-      throw new CronError(flavour.label + " requires ? in exactly one of day of month and day of week.");
+      throw new CronError(
+        flavour.label + " needs ? in exactly one of day of month and day of week. Try " + questionFix(tokens, flavour) + " instead.",
+      );
     }
     return { flavour: flavour.id, macro: null, reboot: false, fields };
+  }
+
+  // What to do about the wrong number of fields, guessing the usual mix-ups.
+  function countHint(flavour, got) {
+    const n = flavour.fields.length;
+    const hasSeconds = flavour.fields[0] === "second";
+    if (got < n) {
+      if (flavour.id === "aws" && got === n - 1) return "Add a year at the end, e.g. *.";
+      if (hasSeconds && got === 5) return "Add a seconds field at the start, e.g. 0.";
+      return "Separate the fields with spaces and add the missing ones.";
+    }
+    if (!hasSeconds && flavour.id !== "aws" && (got === 6 || got === 7)) {
+      return "If it comes from Quartz, Spring or AWS EventBridge, pick that flavour above.";
+    }
+    return "Remove the extra fields.";
   }
 
   function parseOrThrow(expr, flavourId) {
@@ -438,7 +479,7 @@
       throw new CronError(
         flavour.id === "kubernetes"
           ? "Time zone prefixes aren't supported in the schedule; set spec.timeZone on the CronJob instead."
-          : "Time zone prefixes aren't supported.",
+          : "Time zone prefixes aren't supported; remove the " + (lower.startsWith("tz=") ? "TZ" : "CRON_TZ") + "=\u2026 part. All times here are UTC.",
       );
     }
 
@@ -448,7 +489,7 @@
     const n = flavour.fields.length;
     const min = flavour.optionalYear ? n - 1 : n;
     if (tokens.length < min || tokens.length > n) {
-      throw new CronError("Expected " + expectedCount(flavour) + ", got " + tokens.length + ".");
+      throw new CronError("Expected " + expectedCount(flavour) + ", got " + tokens.length + ". " + countHint(flavour, tokens.length));
     }
     return parseFieldList(tokens, flavour);
   }
@@ -1128,6 +1169,22 @@
   }
 
   // Modes the UI may offer for a field, in display order.
+  // Quartz/AWS require "?" in exactly one of day of month and day of week. After
+  // the builder changes `changed`, adjust the other day field so the pair stays
+  // valid: a restricted or "every" field forces the other to "?", and "?" on
+  // both sides turns the other into "every". Returns a new model.
+  function pairDayFields(builder, changed, flavourId) {
+    if (getFlavour(flavourId).question !== "required" || (changed !== "dom" && changed !== "dow")) return builder;
+    const other = changed === "dom" ? "dow" : "dom";
+    const out = { ...builder };
+    if (out[changed].mode === "none") {
+      if (out[other].mode === "none") out[other] = { mode: "every" };
+    } else {
+      out[other] = { mode: "none" };
+    }
+    return out;
+  }
+
   function builderModes(fieldName, flavourId) {
     const flavour = getFlavour(flavourId);
     const modes = ["every", "step", "specific", "range"];
@@ -1138,5 +1195,5 @@
     return modes;
   }
 
-  return { FLAVOURS, getFlavour, parse, nextRuns, explain, convert, switchFlavour, toBuilder, fromBuilder, builderModes };
+  return { FLAVOURS, getFlavour, parse, nextRuns, explain, convert, switchFlavour, toBuilder, fromBuilder, builderModes, pairDayFields };
 });

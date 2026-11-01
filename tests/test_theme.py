@@ -410,3 +410,23 @@ def test_cron_far_future_schedule_is_not_called_never():
 def test_cron_changing_the_target_clears_a_stale_conversion():
     html = page_html("cron.html")
     assert 'targetSelect.addEventListener("change", clearConvert)' in html
+
+
+def test_cron_builder_pairs_day_fields_and_reports_the_question_rule_on_a_day_field():
+    body = (STATIC / "cron.html").read_text()
+    assert "pairDayFields(model, name, flavour.id)" in body
+    assert "day of month and day of week" in body
+
+
+def test_cron_builder_explains_the_question_rule_and_automatic_pairing():
+    body = (STATIC / "cron.html").read_text()
+    assert "No specific value (?)" in body
+    assert "Set one of them to" in body
+    assert "function showPairNote" in body
+    assert "pair-note" in body
+
+
+def test_cron_builder_every_n_starts_with_useful_intervals():
+    body = (STATIC / "cron.html").read_text()
+    assert "DEFAULT_INTERVAL = { second: 15, minute: 5, hour: 2, dom: 2, month: 3, dow: 2, year: 2 }" in body
+    assert "step: DEFAULT_INTERVAL[name]" in body

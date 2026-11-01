@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { parse, nextRuns, toBuilder, fromBuilder, builderModes } = require("../static/cron-logic.js");
+const { parse, nextRuns, toBuilder, fromBuilder, builderModes, pairDayFields } = require("../static/cron-logic.js");
 
 test("round trip simple", () => {
   for (const [e, fl] of [
@@ -145,4 +145,52 @@ test("spring dow step mode is written as an explicit list", () => {
   assert.match(fromBuilder(b, "spring"), / 0,2,4,6$/);
   b.dow = { mode: "step", start: 1, step: 2 };
   assert.match(fromBuilder(b, "spring"), / 1,3,5$/);
+});
+
+// Quartz/AWS need "?" in exactly one of day of month / day of week. When the
+// builder changes one of them, the other is adjusted so the pair stays valid.
+test("pairing: restricting dom sets a restricted dow to ?", () => {
+  const b = toBuilder(parse("0 9 ? * 2-6 *", "aws").cron);   // dom ?, dow Mon-Fri
+  b.dom = { mode: "specific", values: [15] };
+  const out = pairDayFields(b, "dom", "aws");
+  assert.deepEqual(out.dow, { mode: "none" });
+  assert.equal(fromBuilder(out, "aws"), "0 9 15 * ? *");
+});
+test("pairing: dom every with a restricted dow sets dow to ?", () => {
+  const b = toBuilder(parse("0 9 ? * 2-6 *", "aws").cron);
+  b.dom = { mode: "every" };
+  assert.deepEqual(pairDayFields(b, "dom", "aws").dow, { mode: "none" });
+});
+test("pairing: restricting dow sets dom to ?", () => {
+  const b = toBuilder(parse("0 0 12 1 * ?", "quartz").cron);  // dom 1, dow ?
+  b.dow = { mode: "nth", dow: 5, nth: 3 };
+  const out = pairDayFields(b, "dow", "quartz");
+  assert.deepEqual(out.dom, { mode: "none" });
+  assert.equal(fromBuilder(out, "quartz"), "0 0 12 ? * 6#3");
+});
+test("pairing: setting one side to ? makes the other every when both would be ?", () => {
+  const b = toBuilder(parse("0 0 12 ? * 2", "quartz").cron);  // dom ?, dow Monday
+  b.dow = { mode: "none" };
+  assert.deepEqual(pairDayFields(b, "dow", "quartz").dom, { mode: "every" });
+});
+test("pairing: no-op for flavours without the ? rule", () => {
+  const b = toBuilder(parse("0 9 * * 1-5", "unix").cron);
+  b.dom = { mode: "specific", values: [15] };
+  assert.deepEqual(pairDayFields(b, "dom", "unix").dow, { mode: "range", from: 1, to: 5 });
+});
+test("pairing: every paired model parses", () => {
+  const modes = { every: { mode: "every" }, none: { mode: "none" }, specific: { mode: "specific", values: [3] }, range: { mode: "range", from: 1, to: 5 } };
+  for (const fl of ["quartz", "aws"]) {
+    for (const [changed, other] of [["dom", "dow"], ["dow", "dom"]]) {
+      for (const a of Object.values(modes)) {
+        for (const o of Object.values(modes)) {
+          const b = toBuilder(parse(fl === "aws" ? "0 9 ? * * *" : "0 0 9 ? * *", fl).cron);
+          b[changed] = { ...a };
+          b[other] = { ...o };
+          const text = fromBuilder(pairDayFields(b, changed, fl), fl);
+          assert.equal(parse(text, fl).ok, true, fl + " " + changed + "=" + a.mode + " " + other + "=" + o.mode + " -> " + text);
+        }
+      }
+    }
+  }
 });
