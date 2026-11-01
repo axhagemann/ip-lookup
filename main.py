@@ -104,6 +104,11 @@ async def cidr():
     return FileResponse("static/cidr.html")
 
 
+@app.get("/cron")
+async def cron():
+    return FileResponse("static/cron.html")
+
+
 @app.get("/")
 async def index(request: Request):
     if _is_browser(request):

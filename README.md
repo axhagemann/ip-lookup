@@ -24,6 +24,12 @@ Given an IPv4 or IPv6 address and a prefix length (e.g. `192.168.1.10` / `24`), 
 
 Served at `/cidr` (`static/cidr.html`). The calculation runs entirely client-side in JavaScript — no backend request is made, so it works even if the GeoLite2 databases or geo cache are unavailable.
 
+## Cron Calculator
+
+Validates, explains and converts cron expressions for six flavours: Unix cron, Kubernetes CronJob, GitHub Actions, Quartz, AWS EventBridge and Spring. It shows a plain-English explanation and the next 5 run times in UTC, offers a field-by-field builder that stays in sync with the expression, and converts an expression to another flavour. Conversion warns when a run time shifts (for example a dropped seconds value) and refuses when the run set would change (for example "day X or weekday Y" into Quartz).
+
+Served at `/cron` (`static/cron.html`). Everything runs client-side in JavaScript — no backend request is made and nothing typed leaves the browser. Input is length-capped and checked against a character allowlist, and results reach the page only as plain text.
+
 ## Analytics
 
 Visit counting is handled by a self-hosted [GoatCounter](https://www.goatcounter.com) instance — a single Go binary with a SQLite database, chosen over Umami/Plausible/Matomo because it is cookieless, has an accessibility-focused UI, and adds one small container instead of a stack. No cookie banner is needed and no data leaves the server.
@@ -126,7 +132,7 @@ pip install -r requirements-dev.txt
 ruff check .            # lint
 ruff format .           # format
 python -m pytest        # Python tests (main.py)
-node --test             # CIDR calculator JS tests (static/cidr-logic.js)
+node --test             # JS tests (static/cidr-logic.js, static/cron-logic.js)
 ```
 
 ## Prerequisites
@@ -396,12 +402,14 @@ ipinfo/
 ├── requirements.txt
 ├── requirements-dev.txt    # + pytest, httpx, ruff
 ├── pyproject.toml          # ruff + pytest config
-├── tests/                  # pytest (main.py) + Node test (cidr-logic.js)
+├── tests/                  # pytest (main.py) + Node tests (cidr-logic.js, cron-logic.js)
 └── static/
     ├── index.html          # Landing page
     ├── getip.html          # IP lookup tool
     ├── cidr.html           # CIDR range calculator
     ├── cidr-logic.js       # CIDR parsing/math, shared with the JS tests
+    ├── cron.html           # Cron expression calculator
+    ├── cron-logic.js       # Cron parsing/explain/convert, shared with the JS tests
     ├── up.html             # Reachability checker
     ├── impressum.html
     ├── datenschutz.html    # German privacy policy

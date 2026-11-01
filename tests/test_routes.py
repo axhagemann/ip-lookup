@@ -21,6 +21,13 @@ def test_cidr_serves_html(client):
     assert "CIDR" in res.text
 
 
+def test_cron_serves_html(client):
+    res = client.get("/cron")
+    assert res.status_code == 200
+    assert "text/html" in res.headers["content-type"]
+    assert "Cron" in res.text
+
+
 def test_index_serves_html_for_browser(client):
     res = client.get("/", headers={"User-Agent": "Mozilla/5.0"})
     assert res.status_code == 200

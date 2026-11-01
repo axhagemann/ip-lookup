@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Explain, build and convert cron expressions for Unix, Quartz, AWS, Spring, Kubernetes and GitHub Actions, and see the next run times." />
+  <title>Cron Expression Calculator</title>
+  <meta name="color-scheme" content="light dark" />
+  <link rel="stylesheet" href="/style.css?v=2" />
+  <script defer src="/theme.js?v=2"></script>
+  <style>
+    form { display: flex; flex-direction: column; gap: 1rem; }
+    .card + .card { margin-top: 1.5rem; }
+    .card h2 { margin-bottom: 1rem; }
+
+    .field-row { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .field-flavour { flex: 1 1 12rem; }
+    .field-expr { flex: 3 1 14rem; }
+
+    select {
+      font: inherit;
+      width: 100%;
+      min-height: 44px;
+      padding: 0.5rem 0.75rem;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+    }
+
+    #field-hint { margin-top: 0.375rem; }
+    /* Stay rendered while empty so the live region is announced reliably;
+       an empty box just collapses to zero height. */
+    .error:empty { padding: 0; background: none; }
+    .error:not(:empty) { margin-top: 1rem; }
+
+    .result {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+    #explanation { font-size: 1.125rem; font-weight: 600; }
+    .result h2 { font-size: 1rem; margin: 1.25rem 0 0.5rem; }
+    #next-runs { padding-left: 1.5rem; }
+    #next-runs li + li { margin-top: 0.25rem; }
+    #utc-note { margin-top: 0.75rem; }
+
+    .convert-action { margin-top: 1rem; }
+    .convert-output-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-top: 1rem; }
+    .convert-output-row code { flex: 1 1 12rem; overflow-wrap: anywhere; }
+    #convert-warnings { margin-top: 0.5rem; padding-left: 1.5rem; }
+    #switch-warnings { margin-top: 0.75rem; padding-left: 1.5rem; }
+
+    .builder-field { margin: 0 0 1rem; padding: 0.75rem 1rem 1rem; min-width: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+    .builder-field legend { padding: 0 0.375rem; font-weight: 600; }
+    .builder-controls { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .builder-controls > div { flex: 1 1 10rem; min-width: 0; }
+    .builder-controls .builder-mode { flex-basis: 14rem; }
+    .check-group { border: 0; margin: 0; padding: 0; min-width: 0; flex: 1 1 100%; }
+    .check-group legend { padding: 0; font-size: 0.875rem; font-weight: 500; color: var(--text-muted); margin-bottom: 0.375rem; }
+    .check-items { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
+    .check-items label { display: flex; align-items: center; gap: 0.375rem; margin: 0; min-height: 44px; color: var(--text); font-weight: 400; }
+    .check-items input { width: 1.125rem; min-height: 0; height: 1.125rem; margin: 0; }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="topbar">
+    <a class="site-name" href="/">alexander-hagemann.de</a>
+    <button type="button" class="theme-toggle" aria-pressed="false" title="Toggle dark mode" hidden>
+      <svg class="icon-moon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="icon-sun" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <span class="visually-hidden">Dark mode</span>
+    </button>
+  </header>
+
+  <main id="main">
+    <h1>Cron expression calculator</h1>
+
+    <p class="description">
+      Type a cron expression to see what it means in plain English and when it
+      runs next. Pick the flavour first, because Unix, Quartz, AWS and the
+      others differ in fields and syntax.
+    </p>
+
+    <div class="card">
+      <noscript><p class="note">This calculator needs JavaScript.</p></noscript>
+      <form id="cron-form" novalidate>
+        <div class="field-row">
+          <div class="field-flavour">
+            <label for="flavour-select">Flavour</label>
+            <select id="flavour-select" name="flavour"></select>
+          </div>
+          <div class="field-expr">
+            <label for="expr-input">Cron expression</label>
+            <input class="mono" type="text" id="expr-input" name="expr" value="0 9 * * 1-5" maxlength="512" autocomplete="off" spellcheck="false" aria-describedby="field-hint expr-error" />
+            <p class="note mono" id="field-hint"></p>
+          </div>
+        </div>
+      </form>
+
+      <p class="error" id="expr-error" aria-live="polite"></p>
+      <ul class="note" id="switch-warnings" hidden></ul>
+      <p class="visually-hidden" id="result-status" aria-live="polite"></p>
+
+      <div class="result" id="result" hidden>
+        <p id="explanation"></p>
+        <h2>Next 5 runs</h2>
+        <ol class="mono" id="next-runs"></ol>
+        <p class="note" id="utc-note">All times are UTC.</p>
+      </div>
+    </div>
+
+    <div class="card" id="builder">
+      <h2>Build an expression</h2>
+      <p class="note">Changing a field updates the expression above. All values use the selected flavour.</p>
+      <div id="builder-body"></div>
+    </div>
+
+    <div class="card">
+      <h2>Convert to another flavour</h2>
+      <div class="field-row">
+        <div class="field-flavour">
+          <label for="target-select">Convert to</label>
+          <select id="target-select" name="target"></select>
+        </div>
+      </div>
+      <p class="convert-action"><button class="btn btn-primary" type="button" id="convert-btn">Convert</button></p>
+      <p class="error" id="convert-error" aria-live="polite"></p>
+      <div id="convert-result">
+        <div class="convert-output-row" id="convert-output-row" hidden>
+          <code id="convert-output"></code>
+          <button class="btn btn-secondary" type="button" id="copy-btn">Copy</button>
+        </div>
+        <p class="note" id="copy-status" aria-live="polite"></p>
+        <ul class="note" id="convert-warnings"></ul>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <nav class="footer-links" aria-label="Legal">
+      <a href="/impressum.html" lang="de">Impressum</a>
+      <a href="/datenschutz.html" lang="de">Datenschutz</a>
+      <a href="/privacy.html" lang="en">Privacy</a>
+    </nav>
+  </footer>
+
+  <script src="/cron-logic.js"></script>
+  <script>
+    const { FLAVOURS, getFlavour, parse, nextRuns, explain, convert, switchFlavour, toBuilder, fromBuilder, builderModes } = CronCalc;
+
+    const flavourSelect = document.getElementById("flavour-select");
+    const targetSelect = document.getElementById("target-select");
+    const exprInput = document.getElementById("expr-input");
+    const fieldHint = document.getElementById("field-hint");
+    const exprError = document.getElementById("expr-error");
+    const result = document.getElementById("result");
+    const resultStatus = document.getElementById("result-status");
+    const explanation = document.getElementById("explanation");
+    const nextRunsList = document.getElementById("next-runs");
+    const utcNote = document.getElementById("utc-note");
+    const form = document.getElementById("cron-form");
+    const builder = document.getElementById("builder");
+    const builderBody = document.getElementById("builder-body");
+    const switchWarnings = document.getElementById("switch-warnings");
+    const convertBtn = document.getElementById("convert-btn");
+    const convertError = document.getElementById("convert-error");
+    const convertRow = document.getElementById("convert-output-row");
+    const convertOutput = document.getElementById("convert-output");
+    const convertWarnings = document.getElementById("convert-warnings");
+    const copyBtn = document.getElementById("copy-btn");
+    const copyStatus = document.getElementById("copy-status");
+
+    const FIELD_WORDS = {
+      second: "second",
+      minute: "minute",
+      hour: "hour",
+      dom: "day-of-month",
+      month: "month",
+      dow: "day-of-week",
+      year: "year",
+    };
+    const UTC_NOTES = {
+      github: "GitHub Actions always runs schedules in UTC.",
+      aws: "EventBridge rules always run in UTC.",
+    };
+
+    function fillOptions(select) {
+      for (const f of FLAVOURS) {
+        const option = document.createElement("option");
+        option.value = f.id;
+        option.textContent = f.label;
+        select.appendChild(option);
+      }
+    }
+
+    function fieldHintText(flavour) {
+      return flavour.fields
+        .map((name) => (flavour.optionalYear && name === "year" ? "[year]" : FIELD_WORDS[name]))
+        .join(" ");
+    }
+
+    function pad(n) {
+      return String(n).padStart(2, "0");
+    }
+
+    function formatUtc(date, withSeconds) {
+      const day = date.getUTCFullYear() + "-" + pad(date.getUTCMonth() + 1) + "-" + pad(date.getUTCDate());
+      const time = pad(date.getUTCHours()) + ":" + pad(date.getUTCMinutes()) + (withSeconds ? ":" + pad(date.getUTCSeconds()) : "");
+      return day + " " + time + " UTC";
+    }
+
+    function listItem(text) {
+      const li = document.createElement("li");
+      li.textContent = text;
+      return li;
+    }
+
+    // Only touch the live region when the text really changes, so typing
+    // that leaves the meaning unchanged stays silent.
+    function announce(text) {
+      if (resultStatus.textContent !== text) resultStatus.textContent = text;
+    }
+
+    // Pending delayed messages; any later edit or switch cancels them.
+    let refusalTimer = null;
+    let copyTimer = null;
+
+    function update() {
+      clearTimeout(refusalTimer);
+      const flavour = getFlavour(flavourSelect.value);
+      fieldHint.textContent = "Fields: " + fieldHintText(flavour);
+
+      exprError.textContent = "";
+      exprInput.removeAttribute("aria-invalid");
+
+      clearConvert();
+      if (exprInput.value.trim() === "") {
+        convertBtn.disabled = true;
+        result.hidden = true;
+        announce("");
+        return;
+      }
+
+      const parsed = parse(exprInput.value, flavour.id);
+      if (!parsed.ok) {
+        exprError.textContent = parsed.error;
+        exprInput.setAttribute("aria-invalid", "true");
+        convertBtn.disabled = true;
+        result.hidden = true;
+        announce("");
+        return;
+      }
+
+      convertBtn.disabled = false;
+      const cron = parsed.cron;
+      explanation.textContent = explain(cron);
+
+      nextRunsList.replaceChildren();
+      const runs = nextRuns(cron, new Date(), 5);
+      if (runs.length === 0) {
+        nextRunsList.appendChild(listItem(cron.reboot ? "Runs at system startup only." : "No runs in the next 5 years."));
+      } else {
+        const withSeconds = flavour.fields.includes("second");
+        for (const run of runs) nextRunsList.appendChild(listItem(formatUtc(run, withSeconds)));
+      }
+
+      const extra = flavour.utcOnly ? UTC_NOTES[flavour.id] : "";
+      utcNote.textContent = extra ? "All times are UTC. " + extra : "All times are UTC.";
+      result.hidden = false;
+      announce(runs.length === 0 ? nextRunsList.textContent : explanation.textContent);
+    }
+
+    // ---- Builder -------------------------------------------------------
+    const FIELD_LABELS = { second: "Second", minute: "Minute", hour: "Hour", dom: "Day of month", month: "Month", dow: "Day of week", year: "Year" };
+    const MODE_LABELS = {
+      every: "Every", step: "Every N", specific: "Specific values", range: "Range", none: "No specific value (?)",
+      last: "Last", weekday: "Nearest weekday", nth: "Nth weekday", custom: "Custom",
+    };
+    const BOUNDS = { second: [0, 59], minute: [0, 59], hour: [0, 23], dom: [1, 31], month: [1, 12], dow: [0, 6] };
+    const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+    const NAMED = {
+      month: MONTHS.map((label, i) => [i + 1, label]),
+      dow: DAY_ORDER.map((i) => [i, DAYS[i]]),
+    };
+
+    let model = null; // BuilderFields for the current flavour, or null for @reboot
+    let modelFlavour = flavourSelect.value;
+
+    const boundsOf = (flavour, name) => (name === "year" ? flavour.yearRange : BOUNDS[name]);
+
+    function defaultFor(mode, name, flavour) {
+      const [min, max] = boundsOf(flavour, name);
+      switch (mode) {
+        case "step": return { mode, start: min, step: 1 };
+        case "specific": return { mode, values: [name === "dow" ? 1 : min] };
+        case "range": return { mode, from: min, to: max };
+        case "last": return name === "dow" ? { mode, dow: 5 } : { mode, offset: 0 };
+        case "weekday": return { mode, day: "L" };
+        case "nth": return { mode, dow: 5, nth: 1 };
+        case "custom": return { mode, raw: "*" };
+        default: return { mode };
+      }
+    }
+
+    function defaultModel(flavour) {
+      const out = {};
+      for (const name of flavour.fields) out[name] = { mode: "every" };
+      if (flavour.question === "required") out.dow = { mode: "none" };
+      return out;
+    }
+
+    function control(tag, id, key, name) {
+      const el = document.createElement(tag);
+      el.id = id;
+      el.dataset.k = key;
+      el.dataset.f = name;
+      return el;
+    }
+
+    function labelled(el, text) {
+      const wrap = document.createElement("div");
+      const label = document.createElement("label");
+      label.htmlFor = el.id;
+      label.textContent = text;
+      wrap.append(label, el);
+      return wrap;
+    }
+
+    function selectControl(name, key, pairs, value) {
+      const el = control("select", "b-" + name + "-" + key, key, name);
+      for (const [v, text] of pairs) {
+        const o = document.createElement("option");
+        o.value = String(v);
+        o.textContent = text;
+        el.appendChild(o);
+      }
+      el.value = String(value);
+      return el;
+    }
+
+    function numberControl(name, key, value, min, max, mono) {
+      const el = control("input", "b-" + name + "-" + key, key, name);
+      el.type = "number";
+      el.inputMode = "numeric";
+      if (min !== undefined) el.min = String(min);
+      if (max !== undefined) el.max = String(max);
+      el.value = String(value);
+      if (mono !== false) el.className = "mono";
+      return el;
+    }
+
+    function textControl(name, key, value) {
+      const el = control("input", "b-" + name + "-" + key, key, name);
+      el.type = "text";
+      el.className = "mono";
+      el.maxLength = 128;
+      el.autocomplete = "off";
+      el.spellcheck = false;
+      el.value = value;
+      return el;
+    }
+
+    // A value in this field: a named select for day/month, else a bounded number.
+    function valueControl(flavour, name, key, value) {
+      if (NAMED[name]) return selectControl(name, key, NAMED[name], value);
+      const [min, max] = boundsOf(flavour, name);
+      return numberControl(name, key, value, min, max);
+    }
+
+    function checkGroup(name, values) {
+      const group = document.createElement("fieldset");
+      group.className = "check-group";
+      const legend = document.createElement("legend");
+      legend.textContent = name === "dow" ? "Days of the week" : "Months";
+      const items = document.createElement("div");
+      items.className = "check-items";
+      for (const [v, text] of NAMED[name]) {
+        const label = document.createElement("label");
+        const box = control("input", "b-" + name + "-v" + v, "check", name);
+        box.type = "checkbox";
+        box.value = String(v);
+        box.checked = values.includes(v);
+        label.append(box, document.createTextNode(text));
+        items.appendChild(label);
+      }
+      group.append(legend, items);
+      return group;
+    }
+
+    function modeControls(flavour, name, b) {
+      const out = [];
+      switch (b.mode) {
+        case "step":
+          out.push(labelled(valueControl(flavour, name, "start", b.start), "Start"));
+          out.push(labelled(numberControl(name, "step", b.step, 1), "Interval"));
+          break;
+        case "specific":
+          if (NAMED[name]) out.push(checkGroup(name, b.values));
+          else out.push(labelled(textControl(name, "list", b.values.join(",")), "Values, comma-separated"));
+          break;
+        case "range":
+          out.push(labelled(valueControl(flavour, name, "from", b.from), "From"));
+          out.push(labelled(valueControl(flavour, name, "to", b.to), "To"));
+          break;
+        case "last":
+          if (name === "dow") out.push(labelled(selectControl(name, "dow", NAMED.dow, b.dow), "Day of the week"));
+          else out.push(labelled(numberControl(name, "offset", b.offset || 0, 0, 30), "Days before the last day (0 = last day)"));
+          break;
+        case "weekday":
+          out.push(labelled(textControl(name, "day", String(b.day)), "Day 1-31, or L for the last weekday"));
+          break;
+        case "nth":
+          out.push(labelled(selectControl(name, "dow", NAMED.dow, b.dow), "Day of the week"));
+          out.push(labelled(numberControl(name, "nth", b.nth, 1, 5), "Which one (1-5)"));
+          break;
+        case "custom":
+          out.push(labelled(textControl(name, "raw", b.raw), "Field value as written in " + flavour.label));
+          break;
+      }
+      return out;
+    }
+
+    function renderField(flavour, name) {
+      const b = model[name];
+      const set = document.createElement("fieldset");
+      set.className = "builder-field";
+      set.dataset.f = name;
+      const legend = document.createElement("legend");
+      legend.textContent = FIELD_LABELS[name];
+      set.appendChild(legend);
+
+      const row = document.createElement("div");
+      row.className = "builder-controls";
+      const modes = builderModes(name, flavour.id).map((m) => [m, MODE_LABELS[m]]);
+      const modeWrap = labelled(selectControl(name, "mode", modes, b.mode), "Mode");
+      modeWrap.className = "builder-mode";
+      modeWrap.querySelector("select").setAttribute("aria-label", FIELD_LABELS[name] + " mode");
+      row.appendChild(modeWrap);
+      for (const c of modeControls(flavour, name, b)) row.appendChild(c);
+      set.appendChild(row);
+
+      // Always rendered (collapses when empty) so the message is announced reliably.
+      const err = document.createElement("p");
+      err.className = "error";
+      err.id = "b-" + name + "-err";
+      err.setAttribute("aria-live", "polite");
+      set.appendChild(err);
+      for (const c of set.querySelectorAll("[data-f]")) c.setAttribute("aria-describedby", err.id);
+      return set;
+    }
+
+    function renderBuilder() {
+      builderBody.replaceChildren();
+      if (!model) {
+        const p = document.createElement("p");
+        p.className = "note";
+        p.textContent = "@reboot has no schedule to build.";
+        builderBody.appendChild(p);
+        return;
+      }
+      const flavour = getFlavour(modelFlavour);
+      for (const name of flavour.fields) builderBody.appendChild(renderField(flavour, name));
+    }
+
+    // Rebuild the model from the expression box (or defaults when it does not parse).
+    function syncBuilder(force) {
+      const flavour = getFlavour(flavourSelect.value);
+      const parsed = parse(exprInput.value, flavour.id);
+      if (parsed.ok) model = toBuilder(parsed.cron);
+      else if (force) model = defaultModel(flavour);
+      else return;
+      modelFlavour = flavour.id;
+      renderBuilder();
+    }
+
+    // Read the controls of one field back into the model.
+    function collect(set, name, mode) {
+      const val = (key) => {
+        const el = set.querySelector('[data-k="' + key + '"]');
+        return el ? el.value : "";
+      };
+      switch (mode) {
+        case "step": return { mode, start: Number(val("start")), step: Number(val("step")) };
+        case "specific":
+          if (NAMED[name]) {
+            return { mode, values: Array.from(set.querySelectorAll('[data-k="check"]')).filter((c) => c.checked).map((c) => Number(c.value)) };
+          }
+          return { mode, values: val("list").split(",").map((t) => t.trim()).filter((t) => t !== "").map(Number) };
+        case "range": return { mode, from: Number(val("from")), to: Number(val("to")) };
+        case "last": return name === "dow" ? { mode, dow: Number(val("dow")) } : { mode, offset: Number(val("offset")) };
+        case "weekday": {
+          const day = val("day").trim();
+          return { mode, day: day.toUpperCase() === "L" ? "L" : Number(day) };
+        }
+        case "nth": return { mode, dow: Number(val("dow")), nth: Number(val("nth")) };
+        case "custom": return { mode, raw: val("raw").trim() };
+        default: return { mode };
+      }
+    }
+
+    // Which field a parse message is about ("Field 2 (hour): ..."); else the edited one.
+    function errorFieldFor(message, fallback) {
+      const m = /^Field \d+ \(([^)]+)\)/.exec(message);
+      if (m) for (const n of Object.keys(FIELD_WORDS)) if (FIELD_WORDS[n] === m[1]) return n;
+      return fallback;
+    }
+
+    function clearFieldErrors() {
+      for (const err of builderBody.querySelectorAll(".builder-field .error")) err.textContent = "";
+      for (const c of builderBody.querySelectorAll('[aria-invalid="true"]')) c.removeAttribute("aria-invalid");
+    }
+
+    // Report next to the field. The expression box and the last valid result stay as they are.
+    function showBuilderError(name, message) {
+      clearFieldErrors();
+      const target = errorFieldFor(message, name);
+      const set = builderBody.querySelector('.builder-field[data-f="' + target + '"]');
+      if (!set) return;
+      set.querySelector(".error").textContent = FIELD_LABELS[target] + ": " + message.replace(/^Field \d+ \([^)]*\):\s*/, "");
+      for (const c of set.querySelectorAll("[data-f]")) c.setAttribute("aria-invalid", "true");
+    }
+
+    // Model -> expression box -> normal update. Garbage never reaches the box.
+    function applyModel(name) {
+      clearTimeout(refusalTimer);
+      switchWarnings.replaceChildren();
+      switchWarnings.hidden = true;
+      let text;
+      try {
+        text = fromBuilder(model, modelFlavour);
+      } catch (e) {
+        showBuilderError(name, e.message);
+        return;
+      }
+      const check = parse(text, modelFlavour);
+      if (!check.ok) {
+        showBuilderError(name, check.error);
+        return;
+      }
+      clearFieldErrors();
+      exprInput.value = text;
+      update();
+    }
+
+    builderBody.addEventListener("input", (e) => {
+      const el = e.target;
+      const name = el.dataset && el.dataset.f;
+      if (!model || !name) return;
+      const flavour = getFlavour(modelFlavour);
+      if (el.dataset.k === "mode") {
+        model[name] = defaultFor(el.value, name, flavour);
+        // Quartz/AWS want exactly one of day-of-month and day-of-week as "?".
+        if (flavour.question === "required" && (name === "dom" || name === "dow") && el.value !== "none") {
+          const other = name === "dom" ? "dow" : "dom";
+          if (model[other].mode === "every") model[other] = { mode: "none" };
+        }
+        renderBuilder();
+        const again = document.getElementById("b-" + name + "-mode");
+        if (again) again.focus();
+      } else {
+        // An emptied or half-typed number is still being edited; Number("") would be 0.
+        if (el.type === "number" && (el.value === "" || el.validity.badInput)) return;
+        model[name] = collect(el.closest("fieldset.builder-field"), name, model[name].mode);
+      }
+      applyModel(name);
+    });
+
+    // ---- Convert -------------------------------------------------------
+    function clearConvert() {
+      clearTimeout(copyTimer);
+      convertRow.hidden = true;
+      convertOutput.textContent = "";
+      convertError.textContent = "";
+      copyStatus.textContent = "";
+      convertWarnings.replaceChildren();
+    }
+
+    function runConvert() {
+      clearConvert();
+      const from = flavourSelect.value;
+      const to = targetSelect.value;
+      if (from === to) {
+        convertError.textContent = "Pick a different flavour to convert to.";
+        return;
+      }
+      const res = convert(exprInput.value, from, to);
+      if (!res.ok) {
+        convertError.textContent = res.error;
+        return;
+      }
+      convertOutput.textContent = res.expression;
+      for (const w of res.warnings) convertWarnings.appendChild(listItem(w));
+      convertRow.hidden = false;
+      const warn = res.warnings.map((w) => " Warning: " + w).join("");
+      resultStatus.textContent = "Converted to " + getFlavour(to).label + ": " + res.expression + "." + warn;
+    }
+
+    function selectOutput() {
+      const range = document.createRange();
+      range.selectNodeContents(convertOutput);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+
+    function copyOutput() {
+      const text = convertOutput.textContent;
+      copyStatus.textContent = "";
+      clearTimeout(copyTimer);
+      const done = (msg) => { copyTimer = setTimeout(() => { copyStatus.textContent = msg; }, 50); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => done("Copied"), () => { selectOutput(); done("Selected. Press Ctrl+C to copy."); });
+      } else {
+        selectOutput();
+        done("Selected. Press Ctrl+C to copy.");
+      }
+    }
+
+    function defaultTarget(sourceId) {
+      const other = FLAVOURS.find((f) => f.id !== sourceId);
+      targetSelect.value = (other || FLAVOURS[0]).id;
+    }
+
+    // ---- Wiring --------------------------------------------------------
+    let previousFlavour = "unix";
+
+    function onFlavourChange() {
+      clearTimeout(refusalTimer);
+      const next = flavourSelect.value;
+      switchWarnings.replaceChildren();
+      switchWarnings.hidden = true;
+      // "empty" and "reparse" (text that isn't valid in the old flavour) switch without converting.
+      const res = switchFlavour(exprInput.value, previousFlavour, next);
+      if (res.action === "converted") {
+        exprInput.value = res.expression;
+        for (const w of res.warnings) switchWarnings.appendChild(listItem(w));
+        switchWarnings.hidden = res.warnings.length === 0;
+      }
+      if (res.action === "refused") {
+        // The select always names the flavour the text is written in: snap back and explain.
+        const refused = getFlavour(next).label;
+        flavourSelect.value = previousFlavour;
+        defaultTarget(previousFlavour);
+        update();
+        const message = "Can't switch to " + refused + ": " + res.error + " The expression stays in " + getFlavour(previousFlavour).label + ".";
+        refusalTimer = setTimeout(() => { exprError.textContent = message; }, 50);
+        return;
+      }
+      previousFlavour = next;
+      defaultTarget(next);
+      update();
+      if (res.action === "converted") {
+        const warn = res.warnings.map((w) => " Warning: " + w).join("");
+        resultStatus.textContent = "Converted to " + getFlavour(next).label + "." + warn + " " + explanation.textContent;
+      }
+      syncBuilder(true);
+    }
+
+    fillOptions(flavourSelect);
+    fillOptions(targetSelect);
+    flavourSelect.value = "unix";
+    defaultTarget("unix");
+
+    form.addEventListener("submit", (e) => e.preventDefault());
+    exprInput.addEventListener("input", () => {
+      switchWarnings.replaceChildren();
+      switchWarnings.hidden = true;
+      update();
+      if (!builder.contains(document.activeElement)) syncBuilder(false);
+    });
+    flavourSelect.addEventListener("change", onFlavourChange);
+    convertBtn.addEventListener("click", runConvert);
+    targetSelect.addEventListener("change", clearConvert);
+    copyBtn.addEventListener("click", copyOutput);
+    update();
+    syncBuilder(true);
+  </script>
+
+  <!-- Self-hosted GoatCounter: first-party endpoints only, cookieless, no third party. -->
+  <script data-goatcounter="/count" async src="/count.js"></script>
+  <noscript><img src="/count?p=/cron" alt="" aria-hidden="true" width="1" height="1" style="position:absolute"></noscript>
+</body>
+</html>

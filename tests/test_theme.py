@@ -147,7 +147,7 @@ def test_shared_assets_carry_one_cache_busting_version():
 
 
 @pytest.mark.parametrize(
-    "path", ["/", "/getip", "/cidr", "/up", "/impressum.html", "/datenschutz.html", "/privacy.html"]
+    "path", ["/", "/getip", "/cidr", "/cron", "/up", "/impressum.html", "/datenschutz.html", "/privacy.html"]
 )
 def test_routes_serve_themed_pages_and_their_assets(client, path):
     res = client.get(path, headers={"User-Agent": "Mozilla/5.0"})
@@ -244,7 +244,7 @@ def test_up_has_visible_label_and_status_pill():
 
 
 def test_every_page_is_themed():
-    assert len(THEMED) == 7
+    assert len(THEMED) == 8
 
 
 def test_cidr_prefix_input_can_shrink_inside_its_wrapper():
@@ -254,3 +254,159 @@ def test_cidr_prefix_input_can_shrink_inside_its_wrapper():
     rule = css.split(".prefix-input-wrap input {")[1].split("}")[0]
     assert "min-width: 0" in rule
     assert "flex: 1" in rule
+
+
+CRON_IDS = (
+    "cron-form",
+    "flavour-select",
+    "expr-input",
+    "field-hint",
+    "expr-error",
+    "result",
+    "explanation",
+    "next-runs",
+    "utc-note",
+    "builder",
+    "target-select",
+    "convert-btn",
+    "convert-result",
+    "convert-output",
+    "copy-btn",
+    "copy-status",
+    "convert-warnings",
+    "convert-error",
+)
+
+
+def test_cron_keeps_script_hooks_and_labels():
+    html = page_html("cron.html")
+    for hook in CRON_IDS:
+        assert f'id="{hook}"' in html, hook
+    for label in ("flavour-select", "expr-input", "target-select"):
+        assert f'<label for="{label}">' in html
+    assert '<script src="/cron-logic.js"></script>' in html
+    assert 'id="expr-error" aria-live="polite"' in html
+    assert "All times are UTC." in html
+    error_tag = html.split('id="expr-error"')[1].split(">")[0]
+    assert 'role="alert"' not in error_tag
+    assert 'id="copy-status" aria-live="polite"' in html
+
+
+def test_cron_has_no_html_injection_sinks():
+    sinks = ("innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function")
+    for path in (STATIC / "cron.html", STATIC / "cron-logic.js"):
+        text = path.read_text(encoding="utf-8")
+        for sink in sinks:
+            assert sink not in text, (path.name, sink)
+        assert re.search(r"setTimeout\(\s*['\"`]", text) is None
+    tag = re.search(r"<input[^>]*id=\"expr-input\"[^>]*>", page_html("cron.html")).group(0)
+    assert 'maxlength="512"' in tag
+
+
+def test_cron_result_is_not_live_and_status_region_is_separate():
+    html = page_html("cron.html")
+    result_tag = re.search(r'<div[^>]*id="result"[^>]*>', html).group(0)
+    assert "aria-live" not in result_tag
+    status = re.search(r'<p[^>]*id="result-status"[^>]*>', html).group(0)
+    assert 'aria-live="polite"' in status
+    assert "visually-hidden" in status
+    inside = html.split('id="result"')[1].split('id="builder"')[0]
+    assert 'id="result-status"' not in inside
+
+
+def test_cron_error_region_stays_rendered_and_is_linked():
+    html = page_html("cron.html")
+    css = "".join(STYLE_BLOCK.findall(html))
+    for rule in re.findall(r"([^{}]*)\{([^}]*)\}", css):
+        if ".error" in rule[0] or "#expr-error" in rule[0]:
+            assert "display: none" not in rule[1] and "display:none" not in rule[1], rule
+    assert "aria-describedby" in html
+    assert 'setAttribute("aria-invalid", "true")' in html
+
+
+def test_cron_builder_and_convert_wiring():
+    html = page_html("cron.html")
+    for name in ("toBuilder", "fromBuilder", "builderModes", "convert"):
+        assert name in html, name
+    assert "<fieldset" in html or 'createElement("fieldset")' in html
+    assert 'createElement("legend")' in html
+    assert 'id="copy-status" aria-live="polite"' in html
+    assert 'id="switch-warnings"' in html
+    assert "arrives in the next update" not in html
+    # Live regions are never nested: the convert wrapper is not itself live
+    # and the copy status does not sit inside a hidden ancestor.
+    wrapper = re.search(r'<div[^>]*id="convert-result"[^>]*>', html).group(0)
+    assert "aria-live" not in wrapper and "hidden" not in wrapper
+    status_ctx = html.split('id="copy-status"')[0].rsplit('id="convert-result"', 1)[1]
+    status_ctx = re.sub(r'<div[^>]*id="convert-output-row"[^>]*>.*?</div>', "", status_ctx, flags=re.S)
+    assert "hidden" not in status_ctx
+
+
+def test_cron_flavour_switch_always_converts_and_announces_warnings():
+    html = page_html("cron.html")
+    body = html.split("function onFlavourChange()")[1].split("fillOptions(flavourSelect);")[0]
+    assert "CronCalc.switchFlavour(" in body or "switchFlavour(" in body
+    assert 'action === "reparse"' in body or '"reparse"' in body
+    assert "Converted to " in body and "Warning: " in body
+    run = html.split("function runConvert()")[1].split("function selectOutput()")[0]
+    assert "Warning: " in run
+    assert '" warning"' not in run  # no count-only announcement
+
+
+def test_cron_builder_errors_are_per_field_and_do_not_move_the_result():
+    html = page_html("cron.html")
+    render = html.split("function renderField(")[1].split("function renderBuilder()")[0]
+    assert '"-err"' in render and 'className = "error"' in render
+    assert 'setAttribute("aria-live", "polite")' in render
+    assert "aria-describedby" in render
+    show = html.split("function showBuilderError(")[1].split("function applyModel(")[0]
+    assert 'setAttribute("aria-invalid", "true")' in show
+    assert "result.hidden" not in show and "exprInput" not in show
+    assert "validity.badInput" in html and 'el.value === ""' in html
+
+
+def test_cron_refused_switch_snaps_back_to_the_source_flavour():
+    html = page_html("cron.html")
+    body = html.split("function onFlavourChange()")[1].split("fillOptions(flavourSelect);")[0]
+    assert "flavourSelect.value = previousFlavour" in body
+    assert '"refused"' in body
+    assert "The expression stays in " in body
+    refuse = body.split("flavourSelect.value = previousFlavour")[1]
+    assert "defaultModel" not in refuse and "result.hidden" not in refuse
+    assert 'setAttribute("aria-invalid"' not in refuse
+    assert "setTimeout(" in refuse  # message set in a later tick so the live region announces it
+
+
+def test_cron_names_and_noscript_note():
+    html = page_html("cron.html")
+    controls = html.split("function modeControls(")[1].split("function renderField(")[0]
+    assert '"Interval"' in controls and '"Every N"' not in controls
+    assert 'aria-label", FIELD_LABELS[name] + " mode"' in html
+    assert '<noscript><p class="note">This calculator needs JavaScript.</p></noscript>' in html
+
+
+def test_cron_delayed_messages_are_cancellable():
+    html = page_html("cron.html")
+    assert "refusalTimer = setTimeout(" in html and "copyTimer = setTimeout(" in html
+    update = html.split("function update()")[1].split("function ", 1)[0]
+    assert "clearTimeout(refusalTimer)" in update
+    assert "clearTimeout(copyTimer)" in html.split("function clearConvert()")[1].split("function ", 1)[0]
+
+
+def test_cron_unparseable_text_does_not_block_a_flavour_switch():
+    html = page_html("cron.html")
+    body = html.split("function onFlavourChange()")[1].split("fillOptions(flavourSelect);")[0]
+    for action in ('"empty"', '"reparse"', '"converted"', '"refused"'):
+        assert action in body
+    assert "convert(exprInput" not in body  # the page never converts directly on a switch
+
+
+def test_cron_far_future_schedule_is_not_called_never():
+    html = page_html("cron.html")
+    assert "This expression never runs" not in html
+    assert "No runs in the next 5 years." in html
+
+
+def test_cron_changing_the_target_clears_a_stale_conversion():
+    html = page_html("cron.html")
+    assert 'targetSelect.addEventListener("change", clearConvert)' in html

@@ -75,7 +75,7 @@ Rules:
 
 ## 3. Typography
 
-System fonts only — no `@font-face`, no font files, no Google Fonts. Sans for all UI; mono only for technical values (IP addresses, CIDR results, URLs, `<code>`, IP/URL inputs).
+System fonts only — no `@font-face`, no font files, no Google Fonts. Sans for all UI; mono only for technical values (IP addresses, CIDR results, cron expressions, run times, URLs, `<code>`, IP/URL inputs).
 
 | Role | Spec |
 |---|---|

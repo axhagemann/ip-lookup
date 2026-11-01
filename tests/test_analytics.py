@@ -18,6 +18,7 @@ PAGES = {
     "index.html": "/",
     "getip.html": "/getip",
     "cidr.html": "/cidr",
+    "cron.html": "/cron",
     "up.html": "/up",
     "impressum.html": "/impressum.html",
     "datenschutz.html": "/datenschutz.html",
